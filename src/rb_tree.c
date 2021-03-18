@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "rb_tree.h"
 
-struct Node *init_node(void *node_place, int value)
+struct Node *init_node(void *node_place, size_t value)
 {
     *(struct Node *)node_place = (struct Node){
         .color = BLACK,
@@ -298,7 +298,7 @@ void rotateRight(struct RBTree *tree, struct Node *x)
     x->parent = y;
 }
 
-struct Node *search(struct RBTree *tree, int value)
+struct Node *search(struct RBTree *tree, size_t value)
 {
     struct Node *z = tree->root;
 
@@ -316,7 +316,7 @@ struct Node *search(struct RBTree *tree, int value)
     return NULL;
 }
 
-struct Node *searchSmallestLargets(struct RBTree *tree, int value)
+struct Node *searchSmallestLargets(struct RBTree *tree, size_t value)
 {
     struct Node *z = tree->root;
     struct Node *res = NULL;

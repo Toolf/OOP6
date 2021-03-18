@@ -11,7 +11,7 @@ enum Color
 
 struct Node
 {
-    int value;
+    size_t value;
     struct Node *left, *right, *parent;
     bool color;
     // data
@@ -23,7 +23,7 @@ struct RBTree
     struct Node *root;
 };
 
-struct Node *init_node(void *node_place, int value);
+struct Node *init_node(void *node_place, size_t value);
 
 void insert_item(struct RBTree *tree, struct Node *node_place);
 
@@ -35,9 +35,9 @@ void rotateLeft(struct RBTree *tree, struct Node *ptr);
 
 void rotateRight(struct RBTree *tree, struct Node *ptr);
 
-struct Node *search(struct RBTree *tree, int value);
+struct Node *search(struct RBTree *tree, size_t value);
 
-struct Node *searchSmallestLargets(struct RBTree *tree, int value);
+struct Node *searchSmallestLargets(struct RBTree *tree, size_t value);
 
 void print_tree(struct RBTree *tree);
 

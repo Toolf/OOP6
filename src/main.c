@@ -30,6 +30,10 @@ int main()
     }
     printf("str1.2: %s %p\n", str1, str1);
     char *str3 = mem_alloc(16);
+    printf("str3: %p\n", str3);
+    mem_free(str3);
+    str3 = mem_alloc(16);
+    printf("str3: %p\n", str3);
     str3 = mem_realloc(str3, 32);
     if (!str3)
     {
@@ -38,7 +42,6 @@ int main()
     }
     printf("str1: %s %p\n", str1, str1);
     printf("str2: %s %p\n", str2, str2);
-    printf("str3: %s %p\n", str3, str3);
 
     // free
     mem_free(str1);
