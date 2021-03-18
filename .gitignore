@@ -1,0 +1,9 @@
+.vscode
+obj
+CMakeFiles
+build
+include/criterion
+bin
+libs
+build.bat
+test
