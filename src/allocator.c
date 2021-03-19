@@ -1,25 +1,54 @@
 #include <stdint.h>
 #include <stdbool.h>
-#include <string.h>
+#include <stddef.h>
+#include <stdio.h>
+#include "config.h"
 #include "allocator.h"
 #include "arena.h"
 #include "rb_tree.h"
-
-#define ALIGNMENT 8 /*in bytes*/
-#define HEADER_SIZE sizeof(struct Header)
 // CRITICAL_SIZE - розмір мінімального порожнього блоку (включно з Header)
-// TODO : Tree в майбутньому потрібно добавити NODE_SIZE
-#define CRITICAL_SIZE (1 + HEADER_SIZE + NODE_SIZE)
+#define CRITICAL_SIZE (HEADER_SIZE + NODE_SIZE)
 
-#define min(a, b) (((a) < (b)) ? (a) : (b))
+inline size_t min(size_t a, size_t b)
+{
+    return a < b ? a : b;
+}
 
-struct Arena *default_arena = NULL;
+inline size_t max(size_t a, size_t b)
+{
+    return a > b ? a : b;
+}
+
+static struct Arena *default_arena = NULL;
+
+static struct RBTree global_tree = {.root = NULL};
 
 void *
 mem_alloc(size_t size)
 {
-    // TODO : Allocator Якщо розмір який хоче виділити користувач більший за DEFAULT_ARENA_MAX_SIZE
-    //        тоді потрібно виділити нову арену під розмір користувача
+
+    // Вирівнювання
+    size = max(align(size), CRITICAL_SIZE);
+
+    // Якщо розмір який хоче виділити користувач більший за DEFAULT_ARENA_MAX_SIZE
+    // тоді потрібно виділити нову арену під розмір користувача
+    if (DEFAULT_ARENA_MAX_SIZE - ARENA_HEADER_SIZE - HEADER_SIZE < size)
+    {
+        // > Вирішив не ділити дану арени
+        // Причина: (Це не точно)
+        //  Не факт що я зможу в майбутньому віддати системі (windows)
+        //  підчастину (default arena) яка є частиною блоку який виділила система
+        struct Arena *big_arena = create_big_arena(size, CRITICAL_SIZE);
+        if (!big_arena)
+            return NULL;
+
+        if (!default_arena)
+            default_arena = big_arena;
+        else
+            add_arena(default_arena, big_arena);
+
+        return ((char *)(void *)big_arena->first_block + HEADER_SIZE);
+    }
 
     // Створення початкової арени та першого блоку
     if (!default_arena)
@@ -30,46 +59,40 @@ mem_alloc(size_t size)
         if (!default_arena)
             return NULL;
 
-        // free block
-        create_header(
-            (struct Header *)default_arena->body, // header
-            (struct Header *)NULL,                // prev
-            (struct Header *)NULL,                // next
-            true,                                 // free
-            default_arena->size - HEADER_SIZE     // size
-        );
-        default_arena->first_block = (void *)default_arena->body;
-
-        // init root of tree
-        // TODO : Tree Створення початкової ноди дерева
+        // Створення початкової ноди дерева
         insert_item(
-            &default_arena->tree,
+            &global_tree,
             init_node((char *)(void *)(default_arena->first_block) + HEADER_SIZE, default_arena->first_block->size) //
         );
     }
-    // Вирівнювання
-    if (size % ALIGNMENT != 0)
-    {
-        size = size + (ALIGNMENT - (size % ALIGNMENT));
-        //            ^Скільки потрібно додати до розміру, щоб вирівняти по ALIGNMENT
-    }
 
     // Пошук вільго блоку в арені потрібного розміру
-    // TODO : Allocator на даний момент пошук лінійний O(N), після реалізації дерева потрібно переробити на log(N)
-    // struct Header *block = default_arena->first_block;
-    // while (block && !(block->free && block->size >= size))
-    // {
-    //     block = (struct Header *)block->next;
-    // }
-    struct Header *block = (void *)((char *)(void *)searchSmallestLargets(&default_arena->tree, size) - HEADER_SIZE);
-
-    // struct Header *block = search(default_arena->tree, size);
+    void *ptr = search_smallest_largets(&global_tree, size);
+    struct Header *block = NULL;
+    if (ptr)
+    {
+        block = (void *)((char *)ptr - HEADER_SIZE);
+    }
 
     // Якщо знайдений block рівний NULL це значить що в даній арені не було знайдено блоку потрібного розміру
     if (block == NULL)
     {
-        // TODO : Arena створення нової default арени
-        return NULL;
+
+        // створення нової default арени
+        struct Arena *new_arena = init_arena();
+        if (new_arena == NULL)
+        {
+            return NULL;
+        }
+
+        insert_item(
+            &global_tree,
+            init_node((char *)(void *)(new_arena->first_block) + HEADER_SIZE, new_arena->first_block->size) //
+        );
+
+        add_arena(default_arena, new_arena);
+        // Блок якого повинно бути достатньо
+        block = new_arena->first_block;
     }
 
     // block був найдений
@@ -81,8 +104,8 @@ mem_alloc(size_t size)
     //  block не розбивається на 2 частини, а повертається як є
 
     block->free = false;
-    // TODO : Tree Видалення занятої ноди з дерева
-    remove_item(&default_arena->tree, (void *)((char *)(void *)block + HEADER_SIZE));
+    // Видалення занятої ноди з дерева
+    remove_item(&global_tree, (void *)((char *)(void *)block + HEADER_SIZE));
     if (block->size - size > CRITICAL_SIZE)
     {
         // створення правого блоку
@@ -98,9 +121,9 @@ mem_alloc(size_t size)
         block->size = size;
         block->next = right_sub_block;
 
-        // TODO : Tree Добавлення нової ноди в дерево
+        // Добавлення нової ноди в дерево
         insert_item(
-            &default_arena->tree,
+            &global_tree,
             init_node((char *)(void *)right_sub_block + HEADER_SIZE, right_sub_block->size) //
         );
     }
@@ -112,8 +135,6 @@ void mem_free(void *ptr)
 {
     struct Header *header = (void *)((char *)ptr - HEADER_SIZE);
     header->free = true;
-
-    // TODO : Allocator Пошук арени якій належить header
 
     // Склеювання з сусудніми блоками, якщо вони також вільні.
 
@@ -130,49 +151,56 @@ void mem_free(void *ptr)
         if (header->prev->next)
             header->prev->next->prev = header->prev;
 
-        // TODO : Tree Добавлення нової ноди в дерево та видалення двох інших
-        remove_item(&default_arena->tree, (void *)((char *)(void *)header->prev + HEADER_SIZE));
-        remove_item(&default_arena->tree, (void *)((char *)(void *)header->next + HEADER_SIZE));
-        insert_item(&default_arena->tree, init_node((char *)(void *)header->prev + HEADER_SIZE, header->prev->size));
+        // Добавлення нової ноди в дерево та видалення двох інших
+        remove_item(&global_tree, (void *)((char *)(void *)header->prev + HEADER_SIZE));
+        remove_item(&global_tree, (void *)((char *)(void *)header->next + HEADER_SIZE));
+        insert_item(&global_tree, init_node((char *)(void *)header->prev + HEADER_SIZE, header->prev->size));
     }
     else if (header->next && header->next->free)
     {
+        // Добавлення нової ноди в дерево та видалення ноди наступного блоку однії
+        remove_item(&global_tree, (void *)((char *)(void *)header->next + HEADER_SIZE));
+
         header->size = header->size + header->next->size + HEADER_SIZE;
         header->next = header->next->next;
         if (header->next)
             header->next->prev = header;
 
-        // TODO : Tree Добавлення нової ноди в дерево та видалення ноди наступного блоку однії
-        remove_item(&default_arena->tree, (void *)((char *)(void *)header->next + HEADER_SIZE));
-        insert_item(&default_arena->tree, init_node((char *)(void *)header->prev + HEADER_SIZE, header->size));
+        insert_item(&global_tree, init_node((char *)(void *)header + HEADER_SIZE, header->size));
     }
     else if (header->prev && header->prev->free)
     {
+        // Одновлення ноди в дереві
+        remove_item(&global_tree, (void *)((char *)(void *)header->prev + HEADER_SIZE));
+
         header->prev->size = header->prev->size + header->size + HEADER_SIZE;
         header->prev->next = header->next;
         if (header->prev->next)
             header->prev->next->prev = header->prev;
 
-        // TODO : Tree Одновлення ноди в дереві
-        remove_item(&default_arena->tree, (void *)((char *)(void *)header->prev + HEADER_SIZE));
-        insert_item(&default_arena->tree, init_node((char *)(void *)header->prev + HEADER_SIZE, header->prev->size));
+        insert_item(&global_tree, init_node((char *)(void *)header->prev + HEADER_SIZE, header->prev->size));
     }
     else
     {
-        insert_item(&default_arena->tree, init_node((char *)(void *)header + HEADER_SIZE, header->size));
+        insert_item(&global_tree, init_node((char *)(void *)header + HEADER_SIZE, header->size));
     }
 
-    /* TODO: 
+    /* 
      * Якщо якась сторінка пам’яті в алокаторі пам’яті не містить жодної інформації, 
      * то алокатор має повідомити ядро про це відповідним системним викликом.
      */
     // Якщо даний блок єдиний на всю арену
     // то потрібно повідомити ядро про це відповідним системним викликом.
-    // if (!header->next && !header->prev)
-    // {
-    //     struct Arena *arena = (void *)((char *)(void *)header - HEADER_SIZE);
-    //     remove_arena(arena);
-    // }
+    if (!header->next && !header->prev)
+    {
+        struct Arena *arena = (void *)((char *)(void *)header - ARENA_HEADER_SIZE);
+        remove_item(&global_tree, (void *)((char *)(void *)header + HEADER_SIZE));
+        if (arena == default_arena)
+        {
+            default_arena = arena->next;
+        }
+        remove_arena(arena);
+    }
 }
 
 void *mem_realloc(void *ptr, size_t new_size)
@@ -181,11 +209,7 @@ void *mem_realloc(void *ptr, size_t new_size)
         return mem_alloc(new_size);
 
     // Вирівнювання
-    if (new_size % ALIGNMENT != 0)
-    {
-        new_size = new_size + (ALIGNMENT - (new_size % ALIGNMENT));
-        //                    ^Скільки потрібно додати до розміру, щоб вирівняти по ALIGNMENT
-    }
+    new_size = max(align(new_size), CRITICAL_SIZE);
 
     struct Header *block = (void *)((char *)ptr - HEADER_SIZE);
     size_t block_size = block->size;
@@ -209,24 +233,26 @@ void *mem_realloc(void *ptr, size_t new_size)
         size_t merge_size = block_size + block->next->size;
         if (merge_size - new_size >= CRITICAL_SIZE)
         {
+            // Добавлення нової ноди в дерево та видалення сторої
+            remove_item(&global_tree, (void *)(((char *)(void *)(block->next)) + HEADER_SIZE));
+
             block->size = new_size;
             struct Header *new_block = (void *)(((char *)(void *)block + HEADER_SIZE) + new_size);
             create_header(new_block, block, block->next->next, true, merge_size - new_size);
             block->next = new_block;
 
-            // TODO : Tree Добавлення нової ноди в дерево та видалення сторої
-            remove_item(&default_arena->tree, (void *)(((char *)(void *)(block->next)) + HEADER_SIZE));
-            insert_item(&default_arena->tree, init_node((char *)(void *)block + HEADER_SIZE, block->size));
+            insert_item(&global_tree, init_node((char *)(void *)new_block + HEADER_SIZE, new_block->size));
         }
         else
         {
+            // Видалення сторої ноди
+            remove_item(&global_tree, (void *)((char *)(void *)block->next + HEADER_SIZE));
+
             block->size = block->size + block->next->size;
             block->next = block->next->next;
             block->next->prev = block;
-
-            // TODO : Tree Видалення сторої ноди
-            remove_item(&default_arena->tree, (void *)((char *)(void *)block->next + HEADER_SIZE));
         }
+
         return ptr;
     }
 
@@ -236,4 +262,29 @@ void *mem_realloc(void *ptr, size_t new_size)
     mem_free(ptr);
 
     return res;
+}
+
+void mem_print(void)
+{
+    int i = 1;
+    printf("---------------MEM START------------------\n");
+    if (default_arena)
+    {
+        for (struct Arena *arena = default_arena; arena; arena = arena->next, i++)
+        {
+            printf("Arena #%d (%zu)\n", i, arena->size);
+            int b = 1;
+            for (struct Header *block = arena->first_block; block; block = block->next)
+            {
+                printf("Block #%d: {size: %zu,  free: %d, next: %p, prev: %p}\n", b, block->size, block->free, block->next, block->prev);
+                b++;
+            }
+            printf("\n");
+        }
+    }
+    else
+    {
+        printf("memory free: default_arena not found        \n");
+    }
+    printf("---------------MEM END--------------------\n");
 }

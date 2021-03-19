@@ -1,7 +1,7 @@
 #pragma once
 #include <stdbool.h>
 
-#define NODE_SIZE sizeof(struct Node)
+#define NODE_SIZE align(sizeof(struct Node))
 
 enum Color
 {
@@ -11,11 +11,11 @@ enum Color
 
 struct Node
 {
-    size_t value;
     struct Node *left, *right, *parent;
-    bool color;
-    // data
     struct Node *next;
+    struct Node *prev;
+    bool color;
+    size_t value;
 };
 
 struct RBTree
@@ -29,15 +29,15 @@ void insert_item(struct RBTree *tree, struct Node *node_place);
 
 void remove_item(struct RBTree *tree, struct Node *ptr);
 
-void fixViolation(struct RBTree *tree, struct Node *ptr);
+void fix_violation(struct RBTree *tree, struct Node *ptr);
 
-void rotateLeft(struct RBTree *tree, struct Node *ptr);
+void rotate_left(struct RBTree *tree, struct Node *x);
 
-void rotateRight(struct RBTree *tree, struct Node *ptr);
+void rotate_right(struct RBTree *tree, struct Node *x);
 
 struct Node *search(struct RBTree *tree, size_t value);
 
-struct Node *searchSmallestLargets(struct RBTree *tree, size_t value);
+struct Node *search_smallest_largets(struct RBTree *tree, size_t value);
 
 void print_tree(struct RBTree *tree);
 

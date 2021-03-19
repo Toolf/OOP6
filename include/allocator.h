@@ -17,3 +17,5 @@ void mem_free(void *ptr);
  * Reallocates pointer to new size and return new pointer
  */
 void *mem_realloc(void *ptr, size_t new_size);
+
+void mem_dump(void);

@@ -10,7 +10,8 @@ struct Node *init_node(void *node_place, size_t value)
         .right = NULL,
         .parent = NULL,
         .next = NULL,
-        .value = value //
+        .prev = NULL,
+        .value = value,
     };
     return node_place;
 }
@@ -20,7 +21,6 @@ void insert_item(struct RBTree *tree, struct Node *z)
     struct Node *y = NULL;
     struct Node *x = tree->root;
     z->color = RED;
-    // printf("\nvalue: %d\n", z->value);
     while (x)
     {
         y = x;
@@ -32,6 +32,7 @@ void insert_item(struct RBTree *tree, struct Node *z)
         else
         {
             x->next = z;
+            z->prev = x;
             return;
         }
     }
@@ -48,10 +49,7 @@ void insert_item(struct RBTree *tree, struct Node *z)
         y->right = z;
 
     // RB Insert Fixup
-    // print_tree(tree);
-    // printf("-----------\n");
-    fixViolation(tree, z);
-    // print_tree(tree);
+    fix_violation(tree, z);
 }
 
 void transplant(struct RBTree *tree, struct Node *u, struct Node *v)
@@ -78,7 +76,7 @@ void remove_fixup(struct RBTree *tree, struct Node *x)
             {
                 w->color = BLACK;
                 x->parent->color = RED;
-                rotateLeft(tree, x->parent);
+                rotate_left(tree, x->parent);
                 w = x->parent->right;
             }
             if (w->left->color == BLACK && w->right->color == BLACK)
@@ -92,13 +90,13 @@ void remove_fixup(struct RBTree *tree, struct Node *x)
                 {
                     w->left->color = BLACK;
                     w->color = RED;
-                    rotateRight(tree, w);
+                    rotate_right(tree, w);
                     w = w->parent->right;
                 }
                 w->color = x->parent->color;
                 x->parent->color = BLACK;
                 w->right->color = BLACK;
-                rotateLeft(tree, x->parent);
+                rotate_left(tree, x->parent);
                 x = tree->root;
             }
         }
@@ -109,7 +107,7 @@ void remove_fixup(struct RBTree *tree, struct Node *x)
             {
                 w->color = BLACK;
                 x->parent->color = RED;
-                rotateRight(tree, x->parent);
+                rotate_right(tree, x->parent);
                 w = x->parent->left;
             }
             if (w->right->color == BLACK && w->left->color == BLACK)
@@ -123,13 +121,13 @@ void remove_fixup(struct RBTree *tree, struct Node *x)
                 {
                     w->right->color = BLACK;
                     w->color = RED;
-                    rotateLeft(tree, w);
+                    rotate_left(tree, w);
                     w = w->parent->left;
                 }
                 w->color = x->parent->color;
                 x->parent->color = BLACK;
                 w->left->color = BLACK;
-                rotateRight(tree, x->parent);
+                rotate_right(tree, x->parent);
                 x = tree->root;
             }
         }
@@ -147,7 +145,14 @@ struct Node *tree_minimum(struct Node *z)
 
 void remove_item(struct RBTree *tree, struct Node *node)
 {
-    if (node->next)
+    if (node->prev)
+    {
+        node->prev->next = node->next;
+        if (node->next)
+            node->next->prev = node->prev;
+        return;
+    }
+    else if (node->next)
     {
         struct Node *next = node->next;
         next->color = node->color;
@@ -208,7 +213,7 @@ void remove_item(struct RBTree *tree, struct Node *node)
         remove_fixup(tree, x);
 }
 
-void fixViolation(struct RBTree *tree, struct Node *z)
+void fix_violation(struct RBTree *tree, struct Node *z)
 {
     struct Node *y;
     if (!z->parent || !z->parent->parent)
@@ -231,11 +236,11 @@ void fixViolation(struct RBTree *tree, struct Node *z)
                 if (z == z->parent->right)
                 {
                     z = z->parent;
-                    rotateLeft(tree, z);
+                    rotate_left(tree, z);
                 }
                 z->parent->color = BLACK;
                 z->parent->parent->color = RED;
-                rotateRight(tree, z->parent->parent);
+                rotate_right(tree, z->parent->parent);
             }
         }
         else
@@ -253,18 +258,18 @@ void fixViolation(struct RBTree *tree, struct Node *z)
                 if (z == z->parent->left)
                 {
                     z = z->parent;
-                    rotateRight(tree, z);
+                    rotate_right(tree, z);
                 }
                 z->parent->color = BLACK;
                 z->parent->parent->color = RED;
-                rotateLeft(tree, z->parent->parent);
+                rotate_left(tree, z->parent->parent);
             }
         }
     }
     tree->root->color = BLACK;
 }
 
-void rotateLeft(struct RBTree *tree, struct Node *x)
+void rotate_left(struct RBTree *tree, struct Node *x)
 {
     struct Node *y = x->right;
     x->right = y->left;
@@ -281,7 +286,7 @@ void rotateLeft(struct RBTree *tree, struct Node *x)
     x->parent = y;
 }
 
-void rotateRight(struct RBTree *tree, struct Node *x)
+void rotate_right(struct RBTree *tree, struct Node *x)
 {
     struct Node *y = x->left;
     x->left = y->right;
@@ -316,7 +321,7 @@ struct Node *search(struct RBTree *tree, size_t value)
     return NULL;
 }
 
-struct Node *searchSmallestLargets(struct RBTree *tree, size_t value)
+struct Node *search_smallest_largets(struct RBTree *tree, size_t value)
 {
     struct Node *z = tree->root;
     struct Node *res = NULL;
@@ -353,10 +358,10 @@ void print_node(struct Node *node)
         printf("right:\n");
         print_node(node->right);
     }
-    printf("center: %d, color: %d\n", node->value, node->color);
+    printf("center: %zu, color: %d\n", node->value, node->color);
     for (struct Node *next = node->next; next; next = next->next)
     {
-        printf("next: %d\n", next->value);
+        printf("next: %zu\n", next->value);
     }
     if (node->left)
     {
