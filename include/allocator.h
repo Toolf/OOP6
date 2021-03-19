@@ -18,4 +18,4 @@ void mem_free(void *ptr);
  */
 void *mem_realloc(void *ptr, size_t new_size);
 
-void mem_dump(void);
+void mem_print(void);
