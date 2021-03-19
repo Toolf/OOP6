@@ -29,7 +29,7 @@ mem_alloc(size_t size)
 {
 
     // Вирівнювання
-    size = max(align(size), CRITICAL_SIZE);
+    size = max(align(size), NODE_SIZE);
 
     // Якщо розмір який хоче виділити користувач більший за DEFAULT_ARENA_MAX_SIZE
     // тоді потрібно виділити нову арену під розмір користувача
@@ -210,7 +210,7 @@ void *mem_realloc(void *ptr, size_t new_size)
         return mem_alloc(new_size);
 
     // Вирівнювання
-    new_size = max(align(new_size), CRITICAL_SIZE);
+    new_size = max(align(new_size), NODE_SIZE);
 
     struct Header *block = (void *)((char *)ptr - HEADER_SIZE);
     size_t block_size = block->size;
