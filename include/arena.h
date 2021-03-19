@@ -14,7 +14,6 @@ struct Arena
 {
     char *body;
     size_t size; // розмір body
-    struct Header *first_block;
     struct Arena *next;
     struct Arena *prev;
 };

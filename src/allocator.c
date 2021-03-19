@@ -48,7 +48,7 @@ mem_alloc(size_t size)
         else
             add_arena(default_arena, big_arena);
 
-        return ((char *)(void *)big_arena->first_block + HEADER_SIZE);
+        return ((char *)(void *)big_arena + ARENA_HEADER_SIZE + HEADER_SIZE);
     }
 
     // Створення початкової арени та першого блоку
@@ -61,9 +61,10 @@ mem_alloc(size_t size)
             return NULL;
 
         // Створення початкової ноди дерева
+        struct Header *first_block = (void *)((char *)(void *)default_arena + ARENA_HEADER_SIZE);
         insert_item(
             &global_tree,
-            init_node((char *)(void *)(default_arena->first_block) + HEADER_SIZE, default_arena->first_block->size) //
+            init_node((char *)first_block + HEADER_SIZE, first_block->size) //
         );
     }
 
@@ -85,15 +86,15 @@ mem_alloc(size_t size)
         {
             return NULL;
         }
-
+        struct Header *first_block = (void *)((char *)(void *)new_arena + ARENA_HEADER_SIZE);
         insert_item(
             &global_tree,
-            init_node((char *)(void *)(new_arena->first_block) + HEADER_SIZE, new_arena->first_block->size) //
+            init_node((char *)(void *)(first_block) + HEADER_SIZE, first_block->size) //
         );
 
         add_arena(default_arena, new_arena);
         // Блок якого повинно бути достатньо
-        block = new_arena->first_block;
+        block = first_block;
     }
 
     // block був найдений
@@ -224,6 +225,8 @@ void *mem_realloc(void *ptr, size_t new_size)
             struct Header *new_block = (void *)((char *)ptr + new_size);
             create_header(new_block, block, block->next, true, block_size - new_size);
             block->next = new_block;
+
+            insert_item(&global_tree, init_node((char *)(void *)new_block + HEADER_SIZE, new_block->size));
         }
         return ptr;
     }
@@ -275,7 +278,7 @@ void mem_print(void)
         {
             printf("Arena #%d (%zu)\n", i, arena->size);
             int b = 1;
-            for (struct Header *block = arena->first_block; block; block = block->next)
+            for (struct Header *block = (void *)((char *)(void *)arena + ARENA_HEADER_SIZE); block; block = block->next)
             {
                 printf("Block #%d: {size: %zu,  free: %d, next: %p, prev: %p}\n", b, block->size, block->free, block->next, block->prev);
                 b++;

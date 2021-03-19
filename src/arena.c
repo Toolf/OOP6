@@ -16,7 +16,6 @@ struct Arena *init_arena(void)
 
     default_arena->body = (char *)default_arena + ARENA_HEADER_SIZE;
     default_arena->size = DEFAULT_ARENA_MAX_SIZE - ARENA_HEADER_SIZE;
-    default_arena->first_block = NULL;
 
     default_arena->next = NULL;
     default_arena->prev = NULL;
@@ -29,7 +28,6 @@ struct Arena *init_arena(void)
         true,                                 // free
         default_arena->size - HEADER_SIZE     // size
     );
-    default_arena->first_block = (void *)default_arena->body;
 
     return default_arena;
 }
@@ -84,7 +82,6 @@ struct Arena *create_big_arena(size_t size, size_t critical_size)
 
     big_arena->body = (char *)big_arena + ARENA_HEADER_SIZE;
     big_arena->size = big_arena_size;
-    big_arena->first_block = NULL;
 
     big_arena->next = NULL;
     big_arena->prev = NULL;
@@ -96,7 +93,6 @@ struct Arena *create_big_arena(size_t size, size_t critical_size)
         false,                            // free
         big_arena->size - HEADER_SIZE     // size
     );
-    big_arena->first_block = (void *)big_arena->body;
 
     return big_arena;
 }
