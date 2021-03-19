@@ -4,7 +4,10 @@
 #include <header.h>
 #include <rb_tree.h>
 
-#define DEFAULT_ARENA_MAX_SIZE (512 * ALIGNMENT)
+#include "kernal.h"
+
+// page count
+#define DEFAULT_ARENA_MAX_SIZE (2 * get_page_size())
 #define ARENA_HEADER_SIZE align(sizeof(struct Arena))
 
 struct Arena

@@ -6,7 +6,7 @@
 
 static size_t page_size = 0;
 
-static void get_page_size(void)
+size_t get_page_size(void)
 {
     if (page_size == 0)
     {

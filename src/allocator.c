@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include "config.h"
+#include "kernal.h"
 #include "allocator.h"
 #include "arena.h"
 #include "rb_tree.h"

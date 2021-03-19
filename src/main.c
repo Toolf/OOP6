@@ -1,15 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "stdbool.h"
 #include "allocator.h"
-#include "header.h"
-#include "arena.h"
-#include <assert.h>
 
 int test1()
 {
     void *ptr, *ptr1;
-    ptr = mem_alloc(DEFAULT_ARENA_MAX_SIZE - HEADER_SIZE - ARENA_HEADER_SIZE);
+    ptr = mem_alloc(0);
+    mem_print();
     ptr1 = mem_alloc(512);
 
     if (!ptr)
@@ -94,6 +93,27 @@ int test2()
     return true;
 }
 
+bool test3()
+{
+    char *test_arr[10];
+    for (int i = 0; i < 10; i++)
+    {
+        test_arr[i] = mem_alloc(128);
+
+        if (!test_arr[i])
+            return false;
+
+        strcpy(test_arr[i], "Hello, world!");
+    }
+    for (int i = 0; i < 10; i++)
+    {
+        printf("#%d: {addr: %p, value: %s}\n", i + 1, test_arr[i], test_arr[i]);
+        mem_free(test_arr[i]);
+    }
+
+    return true;
+}
+
 int main()
 {
     printf("\nTest 1\n\n");
@@ -101,5 +121,8 @@ int main()
 
     printf("\nTest 2\n\n");
     test2();
+
+    printf("\nTest 3\n\n");
+    test3();
     return 0;
 }

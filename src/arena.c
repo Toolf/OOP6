@@ -3,7 +3,6 @@
 #include "header.h"
 #include "arena.h"
 #include "kernal.h"
-#include "config.h"
 
 // створює арену
 struct Arena *init_arena(void)
@@ -30,7 +29,7 @@ struct Arena *init_arena(void)
         true,                                 // free
         default_arena->size - HEADER_SIZE     // size
     );
-    default_arena->first_block = default_arena->body;
+    default_arena->first_block = (void *)default_arena->body;
 
     return default_arena;
 }
@@ -59,8 +58,8 @@ struct Arena *create_big_arena(size_t size, size_t critical_size)
     size_t allocate_size = size + ARENA_HEADER_SIZE + HEADER_SIZE;
     size_t big_arena_size;
 
-    if (allocate_size % DEFAULT_ARENA_MAX_SIZE != 0)
-        allocate_size = allocate_size + (DEFAULT_ARENA_MAX_SIZE - (allocate_size % DEFAULT_ARENA_MAX_SIZE));
+    if (allocate_size % get_page_size() != 0)
+        allocate_size = allocate_size + (get_page_size() - (allocate_size % get_page_size()));
 
     void *ptr = kernal_alloc(allocate_size);
 
@@ -97,7 +96,7 @@ struct Arena *create_big_arena(size_t size, size_t critical_size)
         false,                            // free
         big_arena->size - HEADER_SIZE     // size
     );
-    big_arena->first_block = big_arena->body;
+    big_arena->first_block = (void *)big_arena->body;
 
     return big_arena;
 }
