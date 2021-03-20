@@ -12,11 +12,10 @@
 
 struct Arena
 {
-    char *body;
     size_t size; // розмір body
-    struct Arena *next;
-    struct Arena *prev;
 };
+
+inline void *body(void *);
 
 // створює арену
 struct Arena *init_arena();

@@ -20,8 +20,6 @@ inline size_t max(size_t a, size_t b)
     return a > b ? a : b;
 }
 
-static struct Arena *default_arena = NULL;
-
 static struct RBTree global_tree = {.root = NULL};
 
 void *
@@ -43,29 +41,7 @@ mem_alloc(size_t size)
         if (!big_arena)
             return NULL;
 
-        if (!default_arena)
-            default_arena = big_arena;
-        else
-            add_arena(default_arena, big_arena);
-
-        return (big_arena->body + HEADER_SIZE);
-    }
-
-    // Створення початкової арени та першого блоку
-    if (!default_arena)
-    {
-        // Примітка:
-        //  Розмір default арени має бути більший ніж CRITICAL_SIZE
-        default_arena = init_arena();
-        if (!default_arena)
-            return NULL;
-
-        // Створення початкової ноди дерева
-        struct Header *first_block = (void *)(default_arena->body);
-        insert_item(
-            &global_tree,
-            init_node((char *)first_block + HEADER_SIZE, first_block->size) //
-        );
+        return ((char *)body(big_arena) + HEADER_SIZE);
     }
 
     // Пошук вільго блоку в арені потрібного розміру
@@ -86,13 +62,12 @@ mem_alloc(size_t size)
         {
             return NULL;
         }
-        struct Header *first_block = (void *)(new_arena->body);
+        struct Header *first_block = body(new_arena);
         insert_item(
             &global_tree,
-            init_node((char *)(void *)(first_block) + HEADER_SIZE, first_block->size) //
+            init_node((char *)(first_block) + HEADER_SIZE, first_block->size) //
         );
 
-        add_arena(default_arena, new_arena);
         // Блок якого повинно бути достатньо
         block = first_block;
     }
@@ -107,11 +82,11 @@ mem_alloc(size_t size)
 
     block->free = false;
     // Видалення занятої ноди з дерева
-    remove_item(&global_tree, (void *)((char *)(void *)block + HEADER_SIZE));
+    remove_item(&global_tree, (void *)((char *)block + HEADER_SIZE));
     if (block->size - size > CRITICAL_SIZE)
     {
         // створення правого блоку
-        struct Header *right_sub_block = (void *)((char *)(void *)block + HEADER_SIZE + size);
+        struct Header *right_sub_block = (void *)((char *)block + HEADER_SIZE + size);
         create_header(
             right_sub_block,                 /*Початок блоку*/
             block,                           /*Попередній блок*/
@@ -126,7 +101,7 @@ mem_alloc(size_t size)
         // Добавлення нової ноди в дерево
         insert_item(
             &global_tree,
-            init_node((char *)(void *)right_sub_block + HEADER_SIZE, right_sub_block->size) //
+            init_node((char *)right_sub_block + HEADER_SIZE, right_sub_block->size) //
         );
     }
 
@@ -154,41 +129,41 @@ void mem_free(void *ptr)
             header->prev->next->prev = header->prev;
 
         // Добавлення нової ноди в дерево та видалення двох інших
-        remove_item(&global_tree, (void *)((char *)(void *)header->prev + HEADER_SIZE));
-        remove_item(&global_tree, (void *)((char *)(void *)header->next + HEADER_SIZE));
-        insert_item(&global_tree, init_node((char *)(void *)header->prev + HEADER_SIZE, header->prev->size));
+        remove_item(&global_tree, (void *)((char *)header->prev + HEADER_SIZE));
+        remove_item(&global_tree, (void *)((char *)header->next + HEADER_SIZE));
+        insert_item(&global_tree, init_node((char *)header->prev + HEADER_SIZE, header->prev->size));
 
         header = header->prev;
     }
     else if (header->next && header->next->free)
     {
         // Добавлення нової ноди в дерево та видалення ноди наступного блоку однії
-        remove_item(&global_tree, (void *)((char *)(void *)header->next + HEADER_SIZE));
+        remove_item(&global_tree, (void *)((char *)header->next + HEADER_SIZE));
 
         header->size = header->size + header->next->size + HEADER_SIZE;
         header->next = header->next->next;
         if (header->next)
             header->next->prev = header;
 
-        insert_item(&global_tree, init_node((char *)(void *)header + HEADER_SIZE, header->size));
+        insert_item(&global_tree, init_node((char *)header + HEADER_SIZE, header->size));
     }
     else if (header->prev && header->prev->free)
     {
         // Одновлення ноди в дереві
-        remove_item(&global_tree, (void *)((char *)(void *)header->prev + HEADER_SIZE));
+        remove_item(&global_tree, (void *)((char *)header->prev + HEADER_SIZE));
 
         header->prev->size = header->prev->size + header->size + HEADER_SIZE;
         header->prev->next = header->next;
         if (header->prev->next)
             header->prev->next->prev = header->prev;
 
-        insert_item(&global_tree, init_node((char *)(void *)header->prev + HEADER_SIZE, header->prev->size));
+        insert_item(&global_tree, init_node((char *)header->prev + HEADER_SIZE, header->prev->size));
 
         header = header->prev;
     }
     else
     {
-        insert_item(&global_tree, init_node((char *)(void *)header + HEADER_SIZE, header->size));
+        insert_item(&global_tree, init_node((char *)header + HEADER_SIZE, header->size));
     }
 
     /* 
@@ -199,12 +174,8 @@ void mem_free(void *ptr)
     // то потрібно повідомити ядро про це відповідним системним викликом.
     if (!header->next && !header->prev)
     {
-        struct Arena *arena = (void *)((char *)(void *)header - ARENA_HEADER_SIZE);
-        remove_item(&global_tree, (void *)((char *)(void *)header + HEADER_SIZE));
-        if (arena == default_arena)
-        {
-            default_arena = arena->next;
-        }
+        struct Arena *arena = (void *)((char *)header - ARENA_HEADER_SIZE);
+        remove_item(&global_tree, (void *)((char *)header + HEADER_SIZE));
         remove_arena(arena);
     }
 }
@@ -230,7 +201,7 @@ void *mem_realloc(void *ptr, size_t new_size)
             create_header(new_block, block, block->next, true, block_size - new_size);
             block->next = new_block;
 
-            insert_item(&global_tree, init_node((char *)(void *)new_block + HEADER_SIZE, new_block->size));
+            insert_item(&global_tree, init_node((char *)new_block + HEADER_SIZE, new_block->size));
         }
         return ptr;
     }
@@ -242,19 +213,19 @@ void *mem_realloc(void *ptr, size_t new_size)
         if (merge_size - new_size >= CRITICAL_SIZE)
         {
             // Добавлення нової ноди в дерево та видалення сторої
-            remove_item(&global_tree, (void *)(((char *)(void *)(block->next)) + HEADER_SIZE));
+            remove_item(&global_tree, (void *)(((char *)(block->next)) + HEADER_SIZE));
 
             block->size = new_size;
-            struct Header *new_block = (void *)(((char *)(void *)block + HEADER_SIZE) + new_size);
+            struct Header *new_block = (void *)(((char *)block + HEADER_SIZE) + new_size);
             create_header(new_block, block, block->next->next, true, merge_size - new_size);
             block->next = new_block;
 
-            insert_item(&global_tree, init_node((char *)(void *)new_block + HEADER_SIZE, new_block->size));
+            insert_item(&global_tree, init_node((char *)new_block + HEADER_SIZE, new_block->size));
         }
         else
         {
             // Видалення сторої ноди
-            remove_item(&global_tree, (void *)((char *)(void *)block->next + HEADER_SIZE));
+            remove_item(&global_tree, (void *)((char *)block->next + HEADER_SIZE));
 
             block->size = block->size + block->next->size;
             block->next = block->next->next;
@@ -274,25 +245,7 @@ void *mem_realloc(void *ptr, size_t new_size)
 
 void mem_print(void)
 {
-    int i = 1;
     printf("---------------MEM START------------------\n");
-    if (default_arena)
-    {
-        for (struct Arena *arena = default_arena; arena; arena = arena->next, i++)
-        {
-            printf("Arena #%d (%zu)\n", i, arena->size);
-            int b = 1;
-            for (struct Header *block = (void *)(arena->body); block; block = block->next)
-            {
-                printf("Block #%d: {size: %zu,  free: %d, next: %p, prev: %p}\n", b, block->size, block->free, block->next, block->prev);
-                b++;
-            }
-            printf("\n");
-        }
-    }
-    else
-    {
-        printf("memory free: default_arena not found        \n");
-    }
+    print_tree(&global_tree);
     printf("---------------MEM END--------------------\n");
 }
