@@ -41,6 +41,7 @@ void insert_item(struct RBTree *tree, struct Node *z)
     if (y == NULL)
     {
         tree->root = z;
+        z->color = BLACK;
         return;
     }
     else if (z->value < y->value)
@@ -209,7 +210,7 @@ void remove_item(struct RBTree *tree, struct Node *node)
         y->left->parent = y;
         y->color = z->color;
     }
-    if (y_original_color == BLACK)
+    if (y_original_color == BLACK && x)
         remove_fixup(tree, x);
 }
 
@@ -217,7 +218,10 @@ void fix_violation(struct RBTree *tree, struct Node *z)
 {
     struct Node *y;
     if (!z->parent || !z->parent->parent)
+    {
+        tree->root->color = BLACK;
         return;
+    }
 
     while (z->parent && z->parent->color == RED)
     {
@@ -353,20 +357,15 @@ void print_tree(struct RBTree *tree)
 
 void print_node(struct Node *node)
 {
-    if (node->right)
-    {
-        printf("right:\n");
-        print_node(node->right);
-    }
-    printf("center: %zu, color: %d\n", node->value, node->color);
-    for (struct Node *next = node->next; next; next = next->next)
-    {
-        printf("next: %zu\n", next->value);
-    }
+    if (!node->left && !node->right)
+        printf("Leaf %d(%s)\n", node->value, node->color == RED ? "RED" : "BLACK");
     if (node->left)
-    {
-        printf("left:\n");
+        printf("From %d(%s) to %d(%s)\n", node->value, node->color == RED ? "RED" : "BLACK", node->left->value, node->left->color == RED ? "RED" : "BLACK");
+    if (node->right)
+        printf("From %d(%s) to %d(%s)\n", node->value, node->color == RED ? "RED" : "BLACK", node->right->value, node->right->color == RED ? "RED" : "BLACK");
+
+    if (node->left)
         print_node(node->left);
-    }
-    printf("back\n");
+    if (node->right)
+        print_node(node->right);
 }
