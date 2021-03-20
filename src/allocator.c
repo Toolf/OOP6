@@ -208,9 +208,9 @@ void *mem_realloc(void *ptr, size_t new_size)
     }
 
     // Якщо можемо розмістити в тій ж пам'яті, але потрібно склеїти з наступним блоком даний блок
-    if (block->next && block->next->free && block_size + block->next->size >= new_size)
+    if (block->next && block->next->free && block_size + block->next->size + HEADER_SIZE >= new_size)
     {
-        size_t merge_size = block_size + block->next->size;
+        size_t merge_size = block_size + block->next->size + HEADER_SIZE;
         if (merge_size - new_size >= CRITICAL_SIZE)
         {
             // Добавлення нової ноди в дерево та видалення сторої
@@ -218,7 +218,7 @@ void *mem_realloc(void *ptr, size_t new_size)
 
             block->size = new_size;
             struct Header *new_block = (void *)(((char *)block + HEADER_SIZE) + new_size);
-            create_header(new_block, block, block->next->next, true, merge_size - new_size);
+            create_header(new_block, block, block->next->next, true, merge_size - new_size - HEADER_SIZE);
             block->next = new_block;
 
             insert_item(&global_tree, init_node((char *)new_block + HEADER_SIZE, new_block->size));
@@ -228,7 +228,7 @@ void *mem_realloc(void *ptr, size_t new_size)
             // Видалення сторої ноди
             remove_item(&global_tree, (void *)((char *)block->next + HEADER_SIZE));
 
-            block->size = block->size + block->next->size;
+            block->size = block->size + block->next->size + HEADER_SIZE;
             block->next = block->next->next;
             block->next->prev = block;
         }
