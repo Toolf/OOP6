@@ -114,6 +114,28 @@ bool test3()
     return true;
 }
 
+bool test4()
+{
+    size_t mem_size[9] = {10, 15, 68, 2, 98, 77, 1024, 33, 69};
+    char *ptrs[9];
+    for (int i = 0; i < 9; i++)
+    {
+        ptrs[i] = mem_alloc(mem_size[i]);
+    }
+    mem_print();
+    for (int i = 0; i < 9; i += 2)
+    {
+        mem_free(ptrs[i]);
+        ptrs[i] = NULL;
+    }
+    mem_print();
+    for (int i = 1; i < 9; i += 2)
+    {
+        mem_free(ptrs[i]);
+    }
+    return true;
+}
+
 int main()
 {
     printf("\nTest 1\n\n");
@@ -124,5 +146,8 @@ int main()
 
     printf("\nTest 3\n\n");
     test3();
+
+    printf("\nTest 4\n\n");
+    test4();
     return 0;
 }
