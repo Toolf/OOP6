@@ -1,5 +1,3 @@
-#pragma once
-
 #include <windows.h>
 #include "kernal.h"
 
