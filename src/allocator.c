@@ -237,6 +237,8 @@ void *mem_realloc(void *ptr, size_t new_size)
 
     // Якщо cклеювання або розміщення на цьому ж місці не можливе
     void *res = mem_alloc(new_size);
+    if (!res)
+        return NULL;
     memcpy(res, ptr, min(new_size, block_size));
     mem_free(ptr);
 
