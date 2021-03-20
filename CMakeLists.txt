@@ -1,8 +1,12 @@
 cmake_minimum_required (VERSION 3.20)
 
+set(CMAKE_C_COMPILER "C:/MinGW/bin/gcc.exe")
+
 project (CUSTOM_ALLOCATOR C)
 
-# set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 11)
+
+# set_property(TARGET main PROPERTY C_STANDARD 11)
 
 
 include_directories("include/")

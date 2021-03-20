@@ -1,7 +1,6 @@
 #pragma once
 
 #include <windows.h>
-#include <memoryapi.h>
 #include "kernal.h"
 
 static size_t page_size = 0;

@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <string.h>
 #include "config.h"
 #include "kernal.h"
 #include "allocator.h"
@@ -10,12 +11,12 @@
 // CRITICAL_SIZE - розмір мінімального порожнього блоку (включно з Header)
 #define CRITICAL_SIZE (HEADER_SIZE + NODE_SIZE)
 
-inline size_t min(size_t a, size_t b)
+static inline size_t min(size_t a, size_t b)
 {
     return a < b ? a : b;
 }
 
-inline size_t max(size_t a, size_t b)
+static inline size_t max(size_t a, size_t b)
 {
     return a > b ? a : b;
 }

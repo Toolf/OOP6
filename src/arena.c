@@ -4,11 +4,6 @@
 #include "arena.h"
 #include "kernal.h"
 
-inline void *body(struct Arena *arena)
-{
-    return (char *)arena + ARENA_HEADER_SIZE;
-}
-
 // створює арену
 struct Arena *init_arena(void)
 {

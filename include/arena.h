@@ -15,7 +15,10 @@ struct Arena
     size_t size; // розмір body
 };
 
-inline void *body(void *);
+static inline void *body(void *arena)
+{
+    return (char *)arena + ARENA_HEADER_SIZE;
+}
 
 // створює арену
 struct Arena *init_arena();

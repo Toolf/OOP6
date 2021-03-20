@@ -358,11 +358,11 @@ void print_tree(struct RBTree *tree)
 void print_node(struct Node *node)
 {
     if (!node->left && !node->right)
-        printf("Leaf %d(%s)\n", node->value, node->color == RED ? "RED" : "BLACK");
+        printf("Leaf %zu(%s)\n", node->value, node->color == RED ? "RED" : "BLACK");
     if (node->left)
-        printf("From %d(%s) to %d(%s)\n", node->value, node->color == RED ? "RED" : "BLACK", node->left->value, node->left->color == RED ? "RED" : "BLACK");
+        printf("From %zu(%s) to %zu(%s)\n", node->value, node->color == RED ? "RED" : "BLACK", node->left->value, node->left->color == RED ? "RED" : "BLACK");
     if (node->right)
-        printf("From %d(%s) to %d(%s)\n", node->value, node->color == RED ? "RED" : "BLACK", node->right->value, node->right->color == RED ? "RED" : "BLACK");
+        printf("From %zu(%s) to %zu(%s)\n", node->value, node->color == RED ? "RED" : "BLACK", node->right->value, node->right->color == RED ? "RED" : "BLACK");
 
     if (node->left)
         print_node(node->left);
