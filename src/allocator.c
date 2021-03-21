@@ -57,12 +57,13 @@ void *
 mem_alloc(size_t size)
 {
     struct Header *block = NULL;
-    // Перевірка переповнення
-    if (align(size) < size)
-        return NULL;
 
     // Вирівнювання
-    size = max(align(size), NODE_SIZE);
+    size_t _size = max(align(size), NODE_SIZE);
+    // Перевірка переповнення
+    if (_size < size)
+        return NULL;
+    size = _size;
 
     // Якщо розмір який хоче виділити користувач більший за DEFAULT_ARENA_MAX_SIZE
     // тоді потрібно виділити нову арену під розмір користувача
@@ -202,7 +203,11 @@ void *mem_realloc(void *ptr, size_t new_size)
         return NULL;
 
     // Вирівнювання
-    new_size = max(align(new_size), NODE_SIZE);
+    size_t _new_size = max(align(new_size), NODE_SIZE);
+    // Перевірка переповнення
+    if (_new_size < new_size)
+        return NULL;
+    new_size = _new_size;
 
     struct Header *block = payload_to_block(ptr);
     size_t block_size = block_get_size_curr(block);
