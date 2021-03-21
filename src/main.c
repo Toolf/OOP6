@@ -57,9 +57,8 @@ void auto_test()
     unsigned int seed = time(NULL);
     srand(seed);
     printf("seed: %u\n", seed);
-    struct Result all_results[N];
     struct Result results[N];
-    unsigned int results_index = 0, all_results_index = 0;
+    unsigned int results_index = 0;
     printf("TEST START\n");
 
     for (unsigned int i = 0; i < N; i++)
@@ -89,8 +88,6 @@ void auto_test()
                 };
                 results[results_index] = result;
                 results_index++;
-                all_results[all_results_index] = result;
-                all_results_index++;
             }
             break;
         case 1:
@@ -112,8 +109,6 @@ void auto_test()
                     .prev_size = results[rand_index].curr_size,
                     .checksum = get_checksum(ptr1, size),
                 };
-                all_results[all_results_index] = results[rand_index];
-                all_results_index++;
             }
             break;
         case 2:
