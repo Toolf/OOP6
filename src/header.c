@@ -5,8 +5,8 @@
 #define SIZE_MASK ((size_t)(-1) >> 3)
 // флаги
 #define FIRST_BLOCK (size_t)((size_t)(-1) ^ ((size_t)(-1) >> 1))
-#define LAST_BLOCK (size_t)(((size_t)(-1) >> 1) ^ ((size_t)(-1) >> 2))
-#define FREE_BLOCK (size_t)(((size_t)(-1) >> 2) ^ ((size_t)(-1) >> 3))
+#define LAST_BLOCK (size_t)((size_t)(-1) ^ ((size_t)(-1) >> 1))
+#define FREE_BLOCK (size_t)(((size_t)(-1) >> 1) ^ ((size_t)(-1) >> 2))
 
 size_t block_get_size_curr(struct Header *block)
 {
@@ -36,7 +36,7 @@ bool block_is_first(struct Header *block)
 }
 bool block_is_last(struct Header *block)
 {
-    return (block->size & LAST_BLOCK) != 0;
+    return (block->size_prev & LAST_BLOCK) != 0;
 }
 bool block_is_free(struct Header *block)
 {
@@ -48,7 +48,7 @@ void block_set_first(struct Header *block)
 }
 void block_set_last(struct Header *block)
 {
-    block->size = block->size | LAST_BLOCK;
+    block->size_prev = block->size_prev | LAST_BLOCK;
 }
 void block_set_free(struct Header *block)
 {
@@ -60,7 +60,7 @@ void block_unset_first(struct Header *block)
 }
 void block_unset_last(struct Header *block)
 {
-    block->size = block->size & ~LAST_BLOCK;
+    block->size_prev = block->size_prev & ~LAST_BLOCK;
 }
 void block_unset_free(struct Header *block)
 {
