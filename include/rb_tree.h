@@ -23,6 +23,16 @@ struct RBTree
     struct Node *root;
 };
 
+static struct Node RBNIL = {
+    .color = BLACK,
+    .parent = &RBNIL,
+    .left = &RBNIL,
+    .right = &RBNIL,
+    .prev = NULL,
+    .next = NULL,
+    .value = 0,
+};
+
 struct Node *init_node(void *node_place, size_t value);
 
 void insert_item(struct RBTree *tree, struct Node *node_place);

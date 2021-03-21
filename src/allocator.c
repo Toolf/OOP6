@@ -11,28 +11,62 @@
 // CRITICAL_SIZE - розмір мінімального порожнього блоку (включно з Header)
 #define CRITICAL_SIZE (HEADER_SIZE + NODE_SIZE)
 
-static inline size_t min(size_t a, size_t b)
-{
-    return a < b ? a : b;
-}
+static struct RBTree global_tree = {.root = &RBNIL};
 
-static inline size_t max(size_t a, size_t b)
+#define min(a, b) min_size_t(a, b)
+#define max(a, b) max_size_t(a, b)
+
+size_t
+max_size_t(size_t a, size_t b)
 {
     return a > b ? a : b;
 }
 
-static struct RBTree global_tree = {.root = NULL};
+size_t
+min_size_t(size_t a, size_t b)
+{
+    return a < b ? a : b;
+}
+
+#define block_to_node(block) ((char *)block + HEADER_SIZE)
+#define node_to_block(node) ((char *)node - HEADER_SIZE)
+#define block_to_payload(block) ((char *)block + HEADER_SIZE)
+#define payload_to_block(payload) ((char *)payload - HEADER_SIZE)
+#define arena_to_first_block(arena) ((char *)arena + ARENA_HEADER_SIZE)
+#define first_block_to_arena(first_block) ((char *)first_block - ARENA_HEADER_SIZE)
+
+struct Header *block_merge(struct Header *block, struct Header *next)
+{
+    if (!block || !block_is_free(block))
+        return next;
+    if (!next || !block_is_free(next))
+        return block;
+
+    remove_item(&global_tree, block_to_node(next));
+    remove_item(&global_tree, block_to_node(block));
+    block_set_size_curr(block, block_get_size_curr(block) + block_get_size_curr(next) + HEADER_SIZE);
+    if (!block_is_last(next))
+        block_set_size_prev(block_next(block), block_get_size_curr(block));
+    else
+        block_set_last(block);
+    insert_item(&global_tree, init_node(block_to_node(block), block_get_size_curr(block)));
+    return block;
+}
 
 void *
 mem_alloc(size_t size)
 {
+    struct Header *block = NULL;
+    // Перевірка переповнення
+    if (align(size) < size)
+        return NULL;
 
     // Вирівнювання
     size = max(align(size), NODE_SIZE);
 
     // Якщо розмір який хоче виділити користувач більший за DEFAULT_ARENA_MAX_SIZE
     // тоді потрібно виділити нову арену під розмір користувача
-    if (DEFAULT_ARENA_MAX_SIZE - ARENA_HEADER_SIZE - HEADER_SIZE < size)
+    if (DEFAULT_ARENA_MAX_SIZE - HEADER_SIZE < size)
     {
         // > Вирішив не ділити дану арени
         // Причина: (Це не точно)
@@ -41,17 +75,18 @@ mem_alloc(size_t size)
         struct Arena *big_arena = create_big_arena(size, CRITICAL_SIZE);
         if (!big_arena)
             return NULL;
+        block = arena_to_first_block(big_arena);
+        create_header(block, NULL, false, big_arena->size - HEADER_SIZE);
+        block_set_first(block);
+        block_set_last(block);
 
-        return ((char *)body(big_arena) + HEADER_SIZE);
+        return block_to_payload(block);
     }
 
     // Пошук вільго блоку в арені потрібного розміру
-    void *ptr = search_smallest_largets(&global_tree, size);
-    struct Header *block = NULL;
-    if (ptr)
-    {
-        block = (void *)((char *)ptr - HEADER_SIZE);
-    }
+    struct Node *node = search_smallest_largets(&global_tree, size);
+    if (node)
+        block = node_to_block(node);
 
     // Якщо знайдений block рівний NULL це значить що в даній арені не було знайдено блоку потрібного розміру
     if (block == NULL)
@@ -60,17 +95,17 @@ mem_alloc(size_t size)
         // створення нової default арени
         struct Arena *new_arena = init_arena();
         if (new_arena == NULL)
-        {
             return NULL;
-        }
-        struct Header *first_block = body(new_arena);
+
+        block = arena_to_first_block(new_arena);
+        create_header(block, NULL, false, new_arena->size - HEADER_SIZE);
+        block_set_first(block);
+        block_set_last(block);
+
         insert_item(
             &global_tree,
-            init_node((char *)(first_block) + HEADER_SIZE, first_block->size) //
+            init_node(block_to_node(block), block_get_size_curr(block)) //
         );
-
-        // Блок якого повинно бути достатньо
-        block = first_block;
     }
 
     // block був найдений
@@ -81,102 +116,79 @@ mem_alloc(size_t size)
     //  Якщо розмір другого блоку менший певної межі (?CRITICAL_SIZE?)
     //  block не розбивається на 2 частини, а повертається як є
 
-    block->free = false;
+    block_unset_free(block);
     // Видалення занятої ноди з дерева
-    remove_item(&global_tree, (void *)((char *)block + HEADER_SIZE));
-    if (block->size - size > CRITICAL_SIZE)
+    remove_item(&global_tree, block_to_node(block));
+    size_t block_size = block_get_size_curr(block);
+    if (block_size - size >= CRITICAL_SIZE)
     {
         // створення правого блоку
-        struct Header *right_sub_block = (void *)((char *)block + HEADER_SIZE + size);
+        block_set_size_curr(block, size);
+        bool is_last = block_is_last(block);
+        if (is_last)
+            block_unset_last(block);
+        struct Header *right_sub_block = block_next(block);
         create_header(
-            right_sub_block,                 /*Початок блоку*/
-            block,                           /*Попередній блок*/
-            block->next,                     /*Слідуючий блок*/
-            true,                            /*Стан блоку "вільний"*/
-            block->size - size - HEADER_SIZE /*Розмір блоку*/
+            right_sub_block,                /*Початок блоку*/
+            block,                          /*Попередній блок*/
+            true,                           /*Стан блоку "вільний"*/
+            block_size - size - HEADER_SIZE /*Розмір блоку*/
         );
-        // оновлення початкового блоку
-        block->size = size;
-        block->next = right_sub_block;
+        if (!is_last)
+        {
+            block_unset_last(right_sub_block);
+            block_set_size_prev(block_next(right_sub_block), block_get_size_curr(right_sub_block));
+        }
 
         // Добавлення нової ноди в дерево
         insert_item(
             &global_tree,
-            init_node((char *)right_sub_block + HEADER_SIZE, right_sub_block->size) //
+            init_node(block_to_node(right_sub_block), block_get_size_curr(right_sub_block)) //
         );
     }
 
-    return (char *)block + HEADER_SIZE;
+    return block_to_payload(block);
 }
 
 void mem_free(void *ptr)
 {
-    struct Header *header = (void *)((char *)ptr - HEADER_SIZE);
-    header->free = true;
+    struct Header *block = payload_to_block(ptr);
+
+    if (block_is_first(block) && ((struct Arena *)first_block_to_arena(block))->size > DEFAULT_ARENA_MAX_SIZE)
+    {
+        // big arena
+        struct Arena *arena = first_block_to_arena(block);
+        remove_arena(arena);
+        return;
+    }
+
+    block_set_free(block);
+    insert_item(&global_tree, init_node(block_to_node(block), block_get_size_curr(block)));
 
     // Склеювання з сусудніми блоками, якщо вони також вільні.
+    block = block_merge(block, block_next(block));
+    block = block_merge(block_prev(block), block);
 
-    // Розглядаємо чотири варіанта
-    // 1) Якщо лівий та правий блоки вільні
-    // 2) Якщо лише лівий блок вільний
-    // 3) Якщо лише правий блок вільний
-    // 4) Якщо сусідні блоки не вільні
+    // TODO : Allocator decommit
+    // Якщо якась сторінка пам’яті в алокаторі пам’яті не містить жодної інформації,
+    // то алокатор має повідомити ядро про це відповідним системним викликом.
 
-    if (header->next && header->prev && header->next->free && header->prev->free)
-    {
-        header->prev->size = header->prev->size + header->size + header->next->size + HEADER_SIZE * 2;
-        header->prev->next = header->next->next;
-        if (header->prev->next)
-            header->prev->next->prev = header->prev;
+    // [arena                                                                                             ]
+    // [page1                         ][page2                              ][page3                        ]
+    // [arena_h][[block_h]       ][block_h][[node]                                                        ]
+    //                            ^block
+    // ^arena                          ^arena + page_size
+    //                                 ^find_first_page_start in block_h
+    // find_first_page_start in block_h скорочено будем називати ffps_in_b
+    // ffps_in_b = (block / page_size)(заокруглене до більшого)
+    // for (ps_in_b = ffps_in_b; ps_in_b in block)
 
-        // Добавлення нової ноди в дерево та видалення двох інших
-        remove_item(&global_tree, (void *)((char *)header->prev + HEADER_SIZE));
-        remove_item(&global_tree, (void *)((char *)header->next + HEADER_SIZE));
-        insert_item(&global_tree, init_node((char *)header->prev + HEADER_SIZE, header->prev->size));
-
-        header = header->prev;
-    }
-    else if (header->next && header->next->free)
-    {
-        // Добавлення нової ноди в дерево та видалення ноди наступного блоку однії
-        remove_item(&global_tree, (void *)((char *)header->next + HEADER_SIZE));
-
-        header->size = header->size + header->next->size + HEADER_SIZE;
-        header->next = header->next->next;
-        if (header->next)
-            header->next->prev = header;
-
-        insert_item(&global_tree, init_node((char *)header + HEADER_SIZE, header->size));
-    }
-    else if (header->prev && header->prev->free)
-    {
-        // Одновлення ноди в дереві
-        remove_item(&global_tree, (void *)((char *)header->prev + HEADER_SIZE));
-
-        header->prev->size = header->prev->size + header->size + HEADER_SIZE;
-        header->prev->next = header->next;
-        if (header->prev->next)
-            header->prev->next->prev = header->prev;
-
-        insert_item(&global_tree, init_node((char *)header->prev + HEADER_SIZE, header->prev->size));
-
-        header = header->prev;
-    }
-    else
-    {
-        insert_item(&global_tree, init_node((char *)header + HEADER_SIZE, header->size));
-    }
-
-    /* 
-     * Якщо якась сторінка пам’яті в алокаторі пам’яті не містить жодної інформації, 
-     * то алокатор має повідомити ядро про це відповідним системним викликом.
-     */
     // Якщо даний блок єдиний на всю арену
     // то потрібно повідомити ядро про це відповідним системним викликом.
-    if (!header->next && !header->prev)
+    if (block_is_first(block) && block_is_last(block))
     {
-        struct Arena *arena = (void *)((char *)header - ARENA_HEADER_SIZE);
-        remove_item(&global_tree, (void *)((char *)header + HEADER_SIZE));
+        struct Arena *arena = first_block_to_arena(block);
+        remove_item(&global_tree, block_to_node(block));
         remove_arena(arena);
     }
 }
@@ -186,54 +198,91 @@ void *mem_realloc(void *ptr, size_t new_size)
     if (!ptr)
         return mem_alloc(new_size);
 
+    if (new_size > SIZE_MAX - ARENA_HEADER_SIZE - HEADER_SIZE)
+        return NULL;
+
     // Вирівнювання
     new_size = max(align(new_size), NODE_SIZE);
 
-    struct Header *block = (void *)((char *)ptr - HEADER_SIZE);
-    size_t block_size = block->size;
+    struct Header *block = payload_to_block(ptr);
+    size_t block_size = block_get_size_curr(block);
 
-    // Якщо можемо розмістити в тій ж пам'яті без додаткових дій
-    if (block_size >= new_size)
+    if (block_is_first(block) && ((struct Arena *)first_block_to_arena(block))->size > DEFAULT_ARENA_MAX_SIZE)
     {
-        if (block_size - new_size >= CRITICAL_SIZE)
-        {
-            block->size = new_size;
-            struct Header *new_block = (void *)((char *)ptr + new_size);
-            create_header(new_block, block, block->next, true, block_size - new_size);
-            block->next = new_block;
+        // Якщо big arena
+        struct Arena *arena = first_block_to_arena(block);
 
-            insert_item(&global_tree, init_node((char *)new_block + HEADER_SIZE, new_block->size));
-        }
-        return ptr;
+        if (arena->size - HEADER_SIZE == new_size)
+            return ptr;
     }
-
-    // Якщо можемо розмістити в тій ж пам'яті, але потрібно склеїти з наступним блоком даний блок
-    if (block->next && block->next->free && block_size + block->next->size + HEADER_SIZE >= new_size)
+    else
     {
-        size_t merge_size = block_size + block->next->size + HEADER_SIZE;
-        if (merge_size - new_size >= CRITICAL_SIZE)
+        // Якщо default arena
+
+        // Якщо можемо розмістити в тій ж пам'яті без додаткових дій
+        if (block_size >= new_size)
         {
-            // Добавлення нової ноди в дерево та видалення сторої
-            remove_item(&global_tree, (void *)(((char *)(block->next)) + HEADER_SIZE));
+            // [block_size                  ]
+            // [new_size  ]   [CRITICAL_SIZE]
+            // [          ][new_block       ]
 
-            block->size = new_size;
-            struct Header *new_block = (void *)(((char *)block + HEADER_SIZE) + new_size);
-            create_header(new_block, block, block->next->next, true, merge_size - new_size - HEADER_SIZE);
-            block->next = new_block;
+            if (block_size - new_size >= CRITICAL_SIZE)
+            {
+                struct Header *next = block_next(block);
+                block_set_size_curr(block, new_size);
+                bool is_last = block_is_last(block);
+                if (is_last)
+                    block_unset_last(block);
+                struct Header *new_block = block_next(block);
+                create_header(new_block, block, true, block_size - new_size - HEADER_SIZE);
+                if (!is_last)
+                {
+                    block_unset_last(new_block);
+                    block_set_size_prev(next, block_get_size_curr(new_block));
+                }
 
-            insert_item(&global_tree, init_node((char *)new_block + HEADER_SIZE, new_block->size));
+                insert_item(&global_tree, init_node(block_to_node(new_block), block_get_size_curr(new_block)));
+            }
+            return ptr;
         }
-        else
+
+        // Якщо можемо розмістити в тій ж пам'яті, але потрібно склеїти з наступним блоком даний блок
+        // [block           ][next              ]
+        // [block                  ][new_block  ]
+        struct Header *next = block_next(block);
+        if (next && block_is_free(next) && block_get_size_curr(block) + block_get_size_curr(next) + HEADER_SIZE >= new_size)
         {
-            // Видалення сторої ноди
-            remove_item(&global_tree, (void *)((char *)block->next + HEADER_SIZE));
+            size_t merge_size = block_get_size_curr(block) + block_get_size_curr(next) + HEADER_SIZE;
+            if (merge_size - new_size >= CRITICAL_SIZE)
+            {
+                // Добавлення нової ноди в дерево та видалення сторої
+                remove_item(&global_tree, block_to_node(next));
+                bool is_last = block_is_last(next);
+                block_set_size_curr(block, new_size);
+                struct Header *new_block = block_next(block);
+                create_header(new_block, block, true, merge_size - new_size - HEADER_SIZE);
+                if (!is_last)
+                {
+                    block_unset_last(new_block);
+                    block_set_size_prev(block_next(new_block), block_get_size_curr(new_block));
+                }
 
-            block->size = block->size + block->next->size + HEADER_SIZE;
-            block->next = block->next->next;
-            block->next->prev = block;
+                insert_item(&global_tree, init_node(block_to_node(new_block), block_get_size_curr(new_block)));
+            }
+            else
+            {
+                // Видалення сторої ноди
+                remove_item(&global_tree, block_to_node(next));
+                block_set_size_curr(block, merge_size);
+                bool is_last = block_is_last(next);
+                if (is_last)
+                    block_set_last(block);
+                else
+                    block_set_size_prev(block_next(block), merge_size);
+            }
+
+            return ptr;
         }
-
-        return ptr;
     }
 
     // Якщо cклеювання або розміщення на цьому ж місці не можливе

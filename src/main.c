@@ -1,153 +1,140 @@
 #include <stdio.h>
+#include <time.h>
 #include <stdlib.h>
 #include <string.h>
-#include "stdbool.h"
+#include <stdbool.h>
+#include <assert.h>
 #include "allocator.h"
 
-int test1()
+#define N 10000
+
+struct Result
 {
-    void *ptr, *ptr1;
-    ptr = mem_alloc(0);
-    mem_print();
-    ptr1 = mem_alloc(512);
+    void *curr;
+    void *prev;
+    size_t curr_size;
+    size_t prev_size;
+    unsigned int checksum;
+};
 
-    if (!ptr)
-        return false;
-
-    mem_print();
-
-    ptr = mem_realloc(ptr, 512);
-    mem_print();
-
-    mem_free(ptr1);
-
-    mem_print();
-
-    mem_free(ptr);
-
-    return true;
+void randomize_place(void *ptr, size_t size)
+{
+    for (size_t i = 0; i < size; i++)
+    {
+        *((char *)ptr + i) = (char)rand();
+    }
 }
 
-int test2()
+unsigned int get_checksum(void *ptr, size_t size)
 {
-    void *ptr = mem_alloc(1024 * 10);
-    mem_print();
-    void *ptr1 = mem_alloc(7096);
-    mem_print();
-    mem_free(ptr1);
-    mem_print();
-    char *str1 = mem_alloc(16);
-    mem_print();
-    mem_free(ptr);
-    mem_print();
-    if (!str1)
-    {
-        printf("str1.1 bag");
-        return false;
-    }
-    strcpy(str1, "111111111111111");
-    printf("str1: %s %p\n", str1, str1);
-    char *str2 = mem_alloc(16);
-    mem_print();
-    if (!str2)
-    {
-        printf("str2 bag");
-        return false;
-    }
-    strcpy(str2, "222222222222222");
-    str1 = mem_realloc(str1, 32);
-    mem_print();
-    if (!str1)
-    {
-        printf("str1.2 bag");
-        return false;
-    }
-    printf("str1.2: %s %p\n", str1, str1);
-    char *str3 = mem_alloc(16);
-    mem_print();
-    mem_free(str3);
-    mem_print();
-    str3 = mem_alloc(16);
-    mem_print();
-    str3 = mem_realloc(str3, 32);
-    mem_print();
-    if (!str3)
-    {
-        printf("str3 bag");
-        return false;
-    }
-    printf("str1: %s %p\n", str1, str1);
-    printf("str2: %s %p\n", str2, str2);
-
-    // free
-    mem_free(str3);
-    mem_print();
-    mem_free(str1);
-    mem_print();
-    mem_free(str2);
-    mem_print();
-    ptr = mem_alloc(512);
-    mem_print();
-    mem_free(ptr);
-    mem_print();
-    return true;
+    unsigned int sum = 0;
+    for (size_t i = 0; i < size; i++)
+        sum += *((char *)ptr + i);
+    return sum;
 }
 
-bool test3()
+void auto_test()
 {
-    char *test_arr[10];
-    for (int i = 0; i < 10; i++)
-    {
-        test_arr[i] = mem_alloc(128);
+    // Автоматичне тестування має виявити помилки в реалізації, які не були виявлені при ручному тестуванні.
+    // Ідея тестування наступна: виконати запити mem_alloc, mem_free і mem_realloc у випадковому порядку.
 
-        if (!test_arr[i])
-            return false;
+    // Щоб це організувати треба створити масив в якому будуть запам’ятовуватися
+    // результати успішних викликів mem_alloc і mem_realloc. Ці результати це
+    // покажчики на блоки, їх розмір і контрольні суми даних блоків.
+    // Всі отримані блоки необхідно заповнювати випадковими даними і підраховувати
+    // їх контрольні суми. Перед викликом mem_realloc або mem_free необхідно перевірити
+    // контрольну суму блоку. Контрольна сума дозволяє виявити модифікацію даних блоку.
+    // Після закінчення тестування треба перевірити всі контрольні суми та звільнити всі блоки.
+    unsigned int seed = time(NULL);
+    srand(seed);
+    printf("seed: %u\n", seed);
+    struct Result all_results[N];
+    struct Result results[N];
+    unsigned int results_index = 0, all_results_index = 0;
+    printf("TEST START\n");
 
-        strcpy(test_arr[i], "Hello, world!");
-    }
-    for (int i = 0; i < 10; i++)
+    for (unsigned int i = 0; i < N; i++)
     {
-        printf("#%d: {addr: %p, value: %s}\n", i + 1, test_arr[i], test_arr[i]);
-        mem_free(test_arr[i]);
+        // 0 - ALLOC
+        // 1 - REALLOC
+        // 2 - FREE
+        unsigned short action = rand() % 3;
+        size_t size = rand();
+        unsigned int rand_index = rand() % (results_index || 1);
+        struct Result result;
+        void *ptr;
+
+        switch (action)
+        {
+        case 0: // ALLOC
+            ptr = mem_alloc(size);
+            if (ptr)
+            {
+                randomize_place(ptr, size);
+                result = (struct Result){
+                    .curr = ptr,
+                    .prev = NULL,
+                    .curr_size = size,
+                    .prev_size = 0,
+                    .checksum = get_checksum(ptr, size), // покащо не потрібно
+                };
+                results[results_index] = result;
+                results_index++;
+                all_results[all_results_index] = result;
+                all_results_index++;
+            }
+            break;
+        case 1:
+            if (results_index == 0)
+                break;
+            // вибераємо рандомний алоцируваний блок
+            result = results[rand_index];
+            assert(get_checksum(result.curr, result.curr_size) == result.checksum && "bad checksum");
+            unsigned int controll = get_checksum(result.curr, min(size, result.curr_size));
+            void *ptr1 = mem_realloc(result.curr, size);
+            if (ptr1)
+            {
+                assert(get_checksum(ptr1, min(size, result.curr_size)) == controll && "bad checksum");
+                randomize_place(ptr1, size);
+                results[rand_index] = (struct Result){
+                    .curr = ptr1,
+                    .prev = results[rand_index].curr,
+                    .curr_size = size,
+                    .prev_size = results[rand_index].curr_size,
+                    .checksum = get_checksum(ptr1, size),
+                };
+                all_results[all_results_index] = results[rand_index];
+                all_results_index++;
+            }
+            break;
+        case 2:
+            if (results_index == 0)
+                break;
+            result = results[rand_index];
+            assert(get_checksum(result.curr, result.curr_size) == result.checksum && "bad checksum");
+            mem_free(result.curr);
+            for (int i = rand_index; i < results_index - 1; i++)
+                results[i] = results[i + 1];
+            results_index--;
+            break;
+        default:
+            break;
+        }
     }
 
-    return true;
-}
+    // clean all alloc blocks
 
-bool test4()
-{
-    size_t mem_size[9] = {10, 15, 68, 2, 98, 77, 1024, 33, 69};
-    char *ptrs[9];
-    for (int i = 0; i < 9; i++)
+    for (unsigned int i = 0; i < results_index; i++)
     {
-        ptrs[i] = mem_alloc(mem_size[i]);
+        assert(get_checksum(results[i].curr, results[i].curr_size) == results[i].checksum && "bad checksum");
+        mem_free(results[i].curr);
     }
-    mem_print();
-    for (int i = 0; i < 9; i += 2)
-    {
-        mem_free(ptrs[i]);
-        ptrs[i] = NULL;
-    }
-    mem_print();
-    for (int i = 1; i < 9; i += 2)
-    {
-        mem_free(ptrs[i]);
-    }
-    return true;
+
+    printf("TEST END\n");
 }
 
 int main()
 {
-    printf("\nTest 1\n\n");
-    test1();
-
-    printf("\nTest 2\n\n");
-    test2();
-
-    printf("\nTest 3\n\n");
-    test3();
-
-    printf("\nTest 4\n\n");
-    test4();
+    auto_test();
     return 0;
 }

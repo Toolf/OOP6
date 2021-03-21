@@ -2,24 +2,17 @@
 
 #include "config.h"
 #include <header.h>
-#include <rb_tree.h>
 
 #include "kernal.h"
 
 // page count
-#define DEFAULT_ARENA_MAX_SIZE (2 * get_page_size())
 #define ARENA_HEADER_SIZE align(sizeof(struct Arena))
+#define DEFAULT_ARENA_MAX_SIZE ((2 * get_page_size()) - ARENA_HEADER_SIZE)
 
 struct Arena
 {
     size_t size; // розмір body
 };
-
-static inline void *body(void *arena)
-{
-    return (char *)arena + ARENA_HEADER_SIZE;
-}
-
 // створює арену
 struct Arena *init_arena();
 

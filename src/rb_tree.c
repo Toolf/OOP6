@@ -1,14 +1,20 @@
 #include <stddef.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include "rb_tree.h"
+
+bool is_rbnil(struct Node *node)
+{
+    return node->left == node->right;
+}
 
 struct Node *init_node(void *node_place, size_t value)
 {
     *(struct Node *)node_place = (struct Node){
         .color = BLACK,
-        .left = NULL,
-        .right = NULL,
-        .parent = NULL,
+        .left = &RBNIL,
+        .right = &RBNIL,
+        .parent = &RBNIL,
         .next = NULL,
         .prev = NULL,
         .value = value,
@@ -18,10 +24,10 @@ struct Node *init_node(void *node_place, size_t value)
 
 void insert_item(struct RBTree *tree, struct Node *z)
 {
-    struct Node *y = NULL;
+    struct Node *y = &RBNIL;
     struct Node *x = tree->root;
     z->color = RED;
-    while (x)
+    while (!is_rbnil(x))
     {
         y = x;
 
@@ -38,12 +44,8 @@ void insert_item(struct RBTree *tree, struct Node *z)
     }
 
     z->parent = y;
-    if (y == NULL)
-    {
+    if (is_rbnil(y))
         tree->root = z;
-        z->color = BLACK;
-        return;
-    }
     else if (z->value < y->value)
         y->left = z;
     else
@@ -55,7 +57,7 @@ void insert_item(struct RBTree *tree, struct Node *z)
 
 void transplant(struct RBTree *tree, struct Node *u, struct Node *v)
 {
-    if (!u->parent)
+    if (is_rbnil(u->parent))
         tree->root = v;
     else if (u == u->parent->left)
         u->parent->left = v;
@@ -179,12 +181,12 @@ void remove_item(struct RBTree *tree, struct Node *node)
 
     y = z = node;
     y_original_color = y->color;
-    if (!z->left)
+    if (is_rbnil(z->left))
     {
         x = z->right;
         transplant(tree, z, z->right);
     }
-    else if (!z->right)
+    else if (is_rbnil(z->right))
     {
         x = z->left;
         transplant(tree, z, z->left);
@@ -196,7 +198,7 @@ void remove_item(struct RBTree *tree, struct Node *node)
         x = y->right;
         if (y->parent == z)
         {
-            if (x)
+            if (!is_rbnil(x))
                 x->parent = y;
         }
         else
@@ -210,25 +212,25 @@ void remove_item(struct RBTree *tree, struct Node *node)
         y->left->parent = y;
         y->color = z->color;
     }
-    if (y_original_color == BLACK && x)
+    if (y_original_color == BLACK)
         remove_fixup(tree, x);
 }
 
 void fix_violation(struct RBTree *tree, struct Node *z)
 {
     struct Node *y;
-    if (!z->parent || !z->parent->parent)
-    {
-        tree->root->color = BLACK;
-        return;
-    }
+    // if (!z->parent || !z->parent->parent)
+    // {
+    //     tree->root->color = BLACK;
+    //     return;
+    // }
 
-    while (z->parent && z->parent->color == RED)
+    while (z->parent->color == RED)
     {
         if (z->parent == z->parent->parent->left)
         {
             y = z->parent->parent->right;
-            if (y && y->color == RED)
+            if (y->color == RED)
             {
                 z->parent->color = BLACK;
                 y->color = BLACK;
@@ -250,7 +252,7 @@ void fix_violation(struct RBTree *tree, struct Node *z)
         else
         {
             y = z->parent->parent->left; // uncle
-            if (y && y->color == RED)
+            if (y->color == RED)
             {
                 z->parent->color = BLACK;
                 y->color = BLACK;
@@ -277,10 +279,10 @@ void rotate_left(struct RBTree *tree, struct Node *x)
 {
     struct Node *y = x->right;
     x->right = y->left;
-    if (y->left)
+    if (!is_rbnil(y->left))
         y->left->parent = x;
     y->parent = x->parent;
-    if (!x->parent)
+    if (is_rbnil(x->parent))
         tree->root = y;
     else if (x == x->parent->left)
         x->parent->left = y;
@@ -294,10 +296,10 @@ void rotate_right(struct RBTree *tree, struct Node *x)
 {
     struct Node *y = x->left;
     x->left = y->right;
-    if (y->right)
+    if (!is_rbnil(y->right))
         y->right->parent = x;
     y->parent = x->parent;
-    if (!x->parent)
+    if (is_rbnil(x->parent))
         tree->root = y;
     else if (x == x->parent->right)
         x->parent->right = y;
@@ -311,7 +313,7 @@ struct Node *search(struct RBTree *tree, size_t value)
 {
     struct Node *z = tree->root;
 
-    while (z)
+    while (!is_rbnil(z))
     {
         if (z->value == value)
             return z;
@@ -330,7 +332,7 @@ struct Node *search_smallest_largets(struct RBTree *tree, size_t value)
     struct Node *z = tree->root;
     struct Node *res = NULL;
 
-    while (z)
+    while (!is_rbnil(z))
     {
         if (z->value == value)
             return z;
