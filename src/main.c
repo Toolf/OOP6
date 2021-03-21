@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <time.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
@@ -8,6 +9,13 @@
 #include "config.h"
 
 #define N 100
+
+#define min(a, b) min_size_t(a, b)
+
+static size_t min_size_t(int a, int b)
+{
+    return a < b ? a : b;
+}
 
 struct Result
 {
@@ -77,7 +85,7 @@ void auto_test()
                     .prev = NULL,
                     .curr_size = size,
                     .prev_size = 0,
-                    .checksum = get_checksum(ptr, size), // покащо не потрібно
+                    .checksum = get_checksum(ptr, size),
                 };
                 results[results_index] = result;
                 results_index++;
