@@ -8,7 +8,8 @@
 #include "allocator.h"
 #include "config.h"
 
-#define N 1000
+#define N 100000
+#define MAX_ARRAY_SIZE 500
 
 #define min(a, b) min_size_t(a, b)
 
@@ -58,7 +59,7 @@ void auto_test(size_t max_size)
     unsigned int seed = time(NULL);
     srand(seed); //1616417437
     printf("seed: %u\n", seed);
-    struct Result results[N];
+    struct Result results[MAX_ARRAY_SIZE];
     unsigned int results_index = 0;
     printf("TEST START\n");
 
@@ -67,11 +68,15 @@ void auto_test(size_t max_size)
         // 0 - ALLOC
         // 1 - REALLOC
         // 2 - FREE
+        printf("#%u\n", i);
         unsigned short action = rand() % 3;
         size_t size = rand() % max_size;
         unsigned int rand_index = rand() % max(results_index, 1);
         struct Result result;
         void *ptr;
+
+        if (results_index == MAX_ARRAY_SIZE)
+            action = 2; // Якщо занадто багато повторів то і місв масиві результатів
 
         switch (action)
         {
@@ -163,7 +168,7 @@ void test_size_max()
 int main()
 {
     // test with very small allocation max_size
-    // auto_test(16);
+    auto_test(16);
     // test with small allocation max_size
     auto_test(512);
     // test with big allocation max_size
