@@ -2,7 +2,7 @@
 #include <stdbool.h>
 
 // Нам потрібні три біта на флаги
-#define SIZE_MASK ((size_t)(-1) >> 3)
+#define SIZE_MASK ((size_t)(-1) >> 2)
 // флаги
 #define FIRST_BLOCK (size_t)((size_t)(-1) ^ ((size_t)(-1) >> 1))
 #define LAST_BLOCK (size_t)((size_t)(-1) ^ ((size_t)(-1) >> 1))
@@ -21,12 +21,12 @@ void block_set_size_curr(struct Header *block, size_t size)
 
 size_t block_get_size_prev(struct Header *block)
 {
-    return block->size_prev * ALIGNMENT;
+    return (block->size_prev & SIZE_MASK) * ALIGNMENT;
 }
 void block_set_size_prev(struct Header *block, size_t size)
 {
     size_t new_size = (size / ALIGNMENT);
-    size_t flags = block->size & (~SIZE_MASK);
+    size_t flags = block->size_prev & (~SIZE_MASK);
     block->size_prev = new_size | flags;
 }
 
@@ -85,7 +85,12 @@ void create_header(struct Header *block, struct Header *prev, bool free, size_t 
     block_set_size_curr(block, size);
 
     if (prev)
+    {
         block_set_size_prev(block, block_get_size_curr(prev));
+        block_unset_first(block);
+    }
+    else
+        block_set_first(block);
 
     if (free)
         block_set_free(block);

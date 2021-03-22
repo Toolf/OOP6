@@ -8,7 +8,7 @@
 #include "allocator.h"
 #include "config.h"
 
-#define N 100
+#define N 1000
 
 #define min(a, b) min_size_t(a, b)
 
@@ -24,6 +24,7 @@ struct Result
     size_t curr_size;
     size_t prev_size;
     unsigned int checksum;
+    unsigned int interation;
 };
 
 void randomize_place(void *ptr, size_t size)
@@ -42,7 +43,7 @@ unsigned int get_checksum(void *ptr, size_t size)
     return sum;
 }
 
-void auto_test()
+void auto_test(size_t max_size)
 {
     // Автоматичне тестування має виявити помилки в реалізації, які не були виявлені при ручному тестуванні.
     // Ідея тестування наступна: виконати запити mem_alloc, mem_free і mem_realloc у випадковому порядку.
@@ -55,9 +56,9 @@ void auto_test()
     // контрольну суму блоку. Контрольна сума дозволяє виявити модифікацію даних блоку.
     // Після закінчення тестування треба перевірити всі контрольні суми та звільнити всі блоки.
     unsigned int seed = time(NULL);
-    srand(seed);
+    srand(seed); //1616417437
     printf("seed: %u\n", seed);
-    struct Result results[N + 1];
+    struct Result results[N];
     unsigned int results_index = 0;
     printf("TEST START\n");
 
@@ -67,8 +68,8 @@ void auto_test()
         // 1 - REALLOC
         // 2 - FREE
         unsigned short action = rand() % 3;
-        size_t size = rand();
-        unsigned int rand_index = rand() % (results_index || 1);
+        size_t size = rand() % max_size;
+        unsigned int rand_index = rand() % max(results_index, 1);
         struct Result result;
         void *ptr;
 
@@ -85,6 +86,7 @@ void auto_test()
                     .curr_size = size,
                     .prev_size = 0,
                     .checksum = get_checksum(ptr, size),
+                    .interation = i,
                 };
                 results[results_index] = result;
                 results_index++;
@@ -108,6 +110,7 @@ void auto_test()
                     .curr_size = size,
                     .prev_size = results[rand_index].curr_size,
                     .checksum = get_checksum(ptr1, size),
+                    .interation = i,
                 };
             }
             break;
@@ -159,7 +162,12 @@ void test_size_max()
 
 int main()
 {
-    auto_test();
+    // test with very small allocation max_size
+    // auto_test(16);
+    // test with small allocation max_size
+    auto_test(512);
+    // test with big allocation max_size
+    auto_test(RAND_MAX);
     test_size_max();
     return 0;
 }

@@ -3,9 +3,19 @@
 #include <stdio.h>
 #include "rb_tree.h"
 
+static struct Node RBNIL = {
+    .color = BLACK,
+    .parent = &RBNIL,
+    .left = &RBNIL,
+    .right = &RBNIL,
+    .prev = NULL,
+    .next = NULL,
+    .value = 0,
+};
+
 bool is_rbnil(struct Node *node)
 {
-    return node->left == node->right;
+    return node == &RBNIL;
 }
 
 struct Node *init_node(void *node_place, size_t value)
@@ -24,6 +34,12 @@ struct Node *init_node(void *node_place, size_t value)
 
 void insert_item(struct RBTree *tree, struct Node *z)
 {
+    if (tree->root == NULL)
+    {
+        tree->root = z;
+        fix_violation(tree, z);
+        return;
+    }
     struct Node *y = &RBNIL;
     struct Node *x = tree->root;
     z->color = RED;
@@ -37,6 +53,11 @@ void insert_item(struct RBTree *tree, struct Node *z)
             x = x->right;
         else
         {
+            if (x->next != NULL)
+            {
+                z->next = x->next;
+                z->next->prev = z;
+            }
             x->next = z;
             z->prev = x;
             return;
@@ -63,7 +84,7 @@ void transplant(struct RBTree *tree, struct Node *u, struct Node *v)
         u->parent->left = v;
     else
         u->parent->right = v;
-    if (v)
+    if (!is_rbnil(v))
         v->parent = u->parent;
 }
 
@@ -106,7 +127,7 @@ void remove_fixup(struct RBTree *tree, struct Node *x)
         else
         {
             w = x->parent->left;
-            if (w->color == RED)
+            if (!is_rbnil(w) && w->color == RED)
             {
                 w->color = BLACK;
                 x->parent->color = RED;
@@ -136,6 +157,9 @@ void remove_fixup(struct RBTree *tree, struct Node *x)
         }
     }
     x->color = BLACK;
+    RBNIL.left = &RBNIL;
+    RBNIL.right = &RBNIL;
+    RBNIL.color = BLACK;
     return;
 }
 
@@ -160,13 +184,22 @@ void remove_item(struct RBTree *tree, struct Node *node)
         struct Node *next = node->next;
         next->color = node->color;
         next->left = node->left;
+        if (!is_rbnil(next->left))
+            next->left->parent = next;
         next->right = node->right;
+        if (!is_rbnil(next->right))
+            next->right->parent = next;
         next->parent = node->parent;
+        next->prev = NULL;
         if (node == tree->root)
         {
+            if (!is_rbnil(node->left))
+                node->left->parent = next;
+            if (!is_rbnil(node->right))
+                node->right->parent = next;
             tree->root = next;
         }
-        else
+        else if (!is_rbnil(node->parent))
         {
             if (node->parent->left == node)
                 node->parent->left = next;
@@ -197,10 +230,7 @@ void remove_item(struct RBTree *tree, struct Node *node)
         y_original_color = y->color;
         x = y->right;
         if (y->parent == z)
-        {
-            if (!is_rbnil(x))
-                x->parent = y;
-        }
+            x->parent = y;
         else
         {
             transplant(tree, y, y->right);
@@ -214,6 +244,12 @@ void remove_item(struct RBTree *tree, struct Node *node)
     }
     if (y_original_color == BLACK)
         remove_fixup(tree, x);
+
+    if (is_rbnil(x))
+    {
+        x->parent = x;
+        x->color = BLACK;
+    }
 }
 
 void fix_violation(struct RBTree *tree, struct Node *z)
@@ -305,7 +341,8 @@ void rotate_right(struct RBTree *tree, struct Node *x)
         x->parent->right = y;
     else
         x->parent->left = y;
-    y->right = x;
+    if (!is_rbnil(y))
+        y->right = x;
     x->parent = y;
 }
 
@@ -329,6 +366,8 @@ struct Node *search(struct RBTree *tree, size_t value)
 
 struct Node *search_smallest_largets(struct RBTree *tree, size_t value)
 {
+    if (tree->root == NULL)
+        return NULL;
     struct Node *z = tree->root;
     struct Node *res = NULL;
 

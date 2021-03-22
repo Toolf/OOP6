@@ -11,7 +11,7 @@
 // CRITICAL_SIZE - розмір мінімального порожнього блоку (включно з Header)
 #define CRITICAL_SIZE (HEADER_SIZE + NODE_SIZE)
 
-static struct RBTree global_tree = {.root = &RBNIL};
+static struct RBTree global_tree = {.root = NULL};
 
 #define min(a, b) min_size_t(a, b)
 #define max(a, b) max_size_t(a, b)
@@ -99,7 +99,7 @@ mem_alloc(size_t size)
             return NULL;
 
         block = arena_to_first_block(new_arena);
-        create_header(block, NULL, false, new_arena->size - HEADER_SIZE);
+        create_header(block, NULL, true, new_arena->size - HEADER_SIZE);
         block_set_first(block);
         block_set_last(block);
 
@@ -121,13 +121,17 @@ mem_alloc(size_t size)
     // Видалення занятої ноди з дерева
     remove_item(&global_tree, block_to_node(block));
     size_t block_size = block_get_size_curr(block);
+
     if (block_size - size >= CRITICAL_SIZE)
     {
         // створення правого блоку
-        block_set_size_curr(block, size);
         bool is_last = block_is_last(block);
         if (is_last)
+        {
             block_unset_last(block);
+        }
+
+        block_set_size_curr(block, size);
         struct Header *right_sub_block = block_next(block);
         create_header(
             right_sub_block,                /*Початок блоку*/
@@ -216,8 +220,8 @@ void *mem_realloc(void *ptr, size_t new_size)
     {
         // Якщо big arena
         struct Arena *arena = first_block_to_arena(block);
-
-        if (arena->size - HEADER_SIZE == new_size)
+        size_t new_size_align_by_page_size = new_size % get_page_size() == 0 ? new_size : new_size + (get_page_size() - new_size % get_page_size());
+        if (arena->size - HEADER_SIZE == new_size_align_by_page_size)
             return ptr;
     }
     else
