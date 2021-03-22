@@ -141,7 +141,7 @@ void remove_fixup(struct RBTree *tree, struct Node *x)
 
 struct Node *tree_minimum(struct Node *z)
 {
-    for (; z->left; z = z->left)
+    for (; !is_rbnil(z->left); z = z->left)
         ;
     return z;
 }

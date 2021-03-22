@@ -57,7 +57,7 @@ void auto_test()
     unsigned int seed = time(NULL);
     srand(seed);
     printf("seed: %u\n", seed);
-    struct Result results[N];
+    struct Result results[N + 1];
     unsigned int results_index = 0;
     printf("TEST START\n");
 
