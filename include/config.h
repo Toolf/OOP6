@@ -3,7 +3,7 @@
 #include <stddef.h>
 
 // _Alignof(max_align_t), працює не для всіх компіляторів.
-#define ALIGNMENT 8
+#define ALIGNMENT _Alignof(max_align_t)
 
 static inline size_t align(size_t N)
 {
