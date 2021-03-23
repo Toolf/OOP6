@@ -62,7 +62,7 @@ void auto_test(size_t max_size)
     // контрольну суму блоку. Контрольна сума дозволяє виявити модифікацію даних блоку.
     // Після закінчення тестування треба перевірити всі контрольні суми та звільнити всі блоки.
     unsigned int seed = time(NULL);
-    srand(1616485488);
+    srand(seed);
     printf("seed: %u\n", seed);
     struct Result results[MAX_ARRAY_SIZE];
     unsigned int results_index = 0;
