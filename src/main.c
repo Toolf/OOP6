@@ -167,11 +167,14 @@ void test_size_max()
     void *ptr2 = mem_realloc(ptr1, SIZE_MAX);
     if (!ptr2)
         printf("Test correct for mem_realloc(SIZE_MAX)\n");
+    ptr2 = mem_realloc(ptr1, SIZE_MAX - ALIGNMENT);
+    if (!ptr2)
+        printf("Test correct for mem_realloc(SIZE_MAX - ALIGNMENT)\n");
     mem_free(ptr1);
 
     void *ptr3 = mem_alloc(SIZE_MAX - ALIGNMENT);
     if (!ptr3)
-        printf("Test correct for mem_realloc(SIZE_MAX - ALIGNMENT)\n");
+        printf("Test correct for mem_alloc(SIZE_MAX - ALIGNMENT)\n");
 }
 
 int main()
