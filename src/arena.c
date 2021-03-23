@@ -29,8 +29,7 @@ struct Arena *create_big_arena(size_t size, size_t critical_size)
     size_t allocate_size = size + ARENA_HEADER_SIZE + HEADER_SIZE;
     size_t big_arena_size;
 
-    if (allocate_size % get_page_size() != 0)
-        allocate_size = allocate_size + (get_page_size() - (allocate_size % get_page_size()));
+    allocate_size = align_by(allocate_size, get_page_size());
 
     // Перевірка переповнення
     if (allocate_size < size)
@@ -60,4 +59,14 @@ struct Arena *create_big_arena(size_t size, size_t critical_size)
     big_arena->size = big_arena_size;
 
     return big_arena;
+}
+
+void decommit(struct Arena *arena, size_t addr, size_t size)
+{
+    kernal_decommit((char *)arena + addr, size);
+}
+
+void commit(struct Arena *arena, size_t addr, size_t size)
+{
+    kernal_commit((char *)arena + addr, size);
 }

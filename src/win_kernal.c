@@ -29,3 +29,13 @@ void *kernal_realloc(void *ptr, size_t new_size)
     // TODO : WIN Kernal realloc
     return NULL;
 }
+
+void kernal_decommit(void *ptr, size_t size)
+{
+    VirtualFree(ptr, size, MEM_DECOMMIT);
+}
+
+void kernal_commit(void *ptr, size_t size)
+{
+    VirtualAlloc(ptr, size, MEM_COMMIT, PAGE_READWRITE);
+}

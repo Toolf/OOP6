@@ -12,10 +12,16 @@
 #define MAX_ARRAY_SIZE 500
 
 #define min(a, b) min_size_t(a, b)
+#define max(a, b) max_size_t(a, b)
 
 static size_t min_size_t(int a, int b)
 {
     return a < b ? a : b;
+}
+
+static size_t max_size_t(int a, int b)
+{
+    return a > b ? a : b;
 }
 
 struct Result
@@ -57,7 +63,7 @@ void auto_test(size_t max_size)
     // контрольну суму блоку. Контрольна сума дозволяє виявити модифікацію даних блоку.
     // Після закінчення тестування треба перевірити всі контрольні суми та звільнити всі блоки.
     unsigned int seed = time(NULL);
-    srand(seed); //1616417437
+    srand(1616485488);
     printf("seed: %u\n", seed);
     struct Result results[MAX_ARRAY_SIZE];
     unsigned int results_index = 0;
@@ -68,7 +74,10 @@ void auto_test(size_t max_size)
         // 0 - ALLOC
         // 1 - REALLOC
         // 2 - FREE
-        printf("#%u\n", i);
+        if (i % (N / 100) == 0)
+            printf("#%u\n", i);
+        if (i == 41254)
+            printf("");
         unsigned short action = rand() % 3;
         size_t size = rand() % max_size;
         unsigned int rand_index = rand() % max(results_index, 1);

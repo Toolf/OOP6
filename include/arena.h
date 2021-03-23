@@ -22,3 +22,8 @@ void add_arena(struct Arena *arena, struct Arena *next_arena);
 void remove_arena(struct Arena *arena);
 
 struct Arena *create_big_arena(size_t size, size_t critical_size);
+
+// addr - відносна адреса, відносно початку арени
+void decommit(struct Arena *arena, size_t addr, size_t size);
+
+void commit(struct Arena *arena, size_t addr, size_t size);

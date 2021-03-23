@@ -157,6 +157,7 @@ void remove_fixup(struct RBTree *tree, struct Node *x)
         }
     }
     x->color = BLACK;
+    RBNIL.parent = &RBNIL;
     RBNIL.left = &RBNIL;
     RBNIL.right = &RBNIL;
     RBNIL.color = BLACK;
