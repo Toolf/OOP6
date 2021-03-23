@@ -14,12 +14,12 @@
 #define min(a, b) min_size_t(a, b)
 #define max(a, b) max_size_t(a, b)
 
-static size_t min_size_t(int a, int b)
+static size_t min_size_t(size_t a, size_t b)
 {
     return a < b ? a : b;
 }
 
-static size_t max_size_t(int a, int b)
+static size_t max_size_t(size_t a, size_t b)
 {
     return a > b ? a : b;
 }
