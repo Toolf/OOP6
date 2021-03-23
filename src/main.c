@@ -31,7 +31,6 @@ struct Result
     size_t curr_size;
     size_t prev_size;
     unsigned int checksum;
-    unsigned int interation;
 };
 
 void randomize_place(void *ptr, size_t size)
@@ -76,8 +75,6 @@ void auto_test(size_t max_size)
         // 2 - FREE
         if (i % (N / 100) == 0)
             printf("#%u\n", i);
-        if (i == 41254)
-            printf("");
         unsigned short action = rand() % 3;
         size_t size = rand() % max_size;
         unsigned int rand_index = rand() % max(results_index, 1);
@@ -100,7 +97,6 @@ void auto_test(size_t max_size)
                     .curr_size = size,
                     .prev_size = 0,
                     .checksum = get_checksum(ptr, size),
-                    .interation = i,
                 };
                 results[results_index] = result;
                 results_index++;
@@ -124,7 +120,6 @@ void auto_test(size_t max_size)
                     .curr_size = size,
                     .prev_size = results[rand_index].curr_size,
                     .checksum = get_checksum(ptr1, size),
-                    .interation = i,
                 };
             }
             break;
