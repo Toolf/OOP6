@@ -12,24 +12,16 @@
 #define MAX_ARRAY_SIZE 500
 
 #define min(a, b) min_size_t(a, b)
-#define max(a, b) max_size_t(a, b)
 
 static size_t min_size_t(size_t a, size_t b)
 {
     return a < b ? a : b;
 }
 
-static size_t max_size_t(size_t a, size_t b)
-{
-    return a > b ? a : b;
-}
-
 struct Result
 {
     void *curr;
-    void *prev;
     size_t curr_size;
-    size_t prev_size;
     unsigned int checksum;
 };
 
@@ -45,7 +37,7 @@ unsigned int get_checksum(void *ptr, size_t size)
 {
     unsigned int sum = 0;
     for (size_t i = 0; i < size; i++)
-        sum += *((char *)ptr + i);
+        sum += (sum << 2) ^ (sum >> 5) ^ *((char *)ptr + i);
     return sum;
 }
 
@@ -64,8 +56,7 @@ void auto_test(size_t max_size)
     unsigned int seed = time(NULL);
     srand(seed);
     printf("seed: %u\n", seed);
-    struct Result results[MAX_ARRAY_SIZE];
-    unsigned int results_index = 0;
+    struct Result results[MAX_ARRAY_SIZE] = {{.checksum = 0, .curr = NULL, .curr_size = 0}};
     printf("TEST START\n");
 
     for (unsigned int i = 0; i < N; i++)
@@ -74,16 +65,12 @@ void auto_test(size_t max_size)
         // 1 - REALLOC
         // 2 - FREE
         if (i % (N / 100) == 0)
-            printf("#%u\n", i);
+            printf("%u%\n", i / (N / 100));
         unsigned short action = rand() % 3;
         size_t size = rand() % max_size;
-        unsigned int rand_index = rand() % max(results_index, 1);
+        unsigned int rand_index = rand() % MAX_ARRAY_SIZE;
         struct Result result;
         void *ptr;
-
-        if (results_index == MAX_ARRAY_SIZE)
-            action = 2; // Якщо занадто багато повторів то і місв масиві результатів
-
         switch (action)
         {
         case 0: // ALLOC
@@ -93,21 +80,16 @@ void auto_test(size_t max_size)
                 randomize_place(ptr, size);
                 result = (struct Result){
                     .curr = ptr,
-                    .prev = NULL,
                     .curr_size = size,
-                    .prev_size = 0,
                     .checksum = get_checksum(ptr, size),
                 };
-                results[results_index] = result;
-                results_index++;
+                results[rand_index] = result;
             }
             break;
         case 1:
-            if (results_index == 0)
-                break;
-            // вибераємо рандомний алоцируваний блок
             result = results[rand_index];
-            assert(get_checksum(result.curr, result.curr_size) == result.checksum && "bad checksum");
+            if (result.curr) // Якщо був алоцирований
+                assert(get_checksum(result.curr, result.curr_size) == result.checksum && "bad checksum");
             unsigned int controll = get_checksum(result.curr, min(size, result.curr_size));
             void *ptr1 = mem_realloc(result.curr, size);
             if (ptr1)
@@ -116,22 +98,22 @@ void auto_test(size_t max_size)
                 randomize_place(ptr1, size);
                 results[rand_index] = (struct Result){
                     .curr = ptr1,
-                    .prev = results[rand_index].curr,
                     .curr_size = size,
-                    .prev_size = results[rand_index].curr_size,
                     .checksum = get_checksum(ptr1, size),
                 };
             }
             break;
         case 2:
-            if (results_index == 0)
-                break;
             result = results[rand_index];
-            assert(get_checksum(result.curr, result.curr_size) == result.checksum && "bad checksum");
+            if (result.curr) // Якщо був алоцирований
+                assert(get_checksum(result.curr, result.curr_size) == result.checksum && "bad checksum");
             mem_free(result.curr);
-            for (int i = rand_index; i < results_index - 1; i++)
-                results[i] = results[i + 1];
-            results_index--;
+            results[rand_index] = (struct Result){
+                .curr = NULL,
+                .curr_size = 0,
+                .checksum = 0,
+            };
+
             break;
         default:
             break;
@@ -140,7 +122,7 @@ void auto_test(size_t max_size)
 
     // clean all alloc blocks
 
-    for (unsigned int i = 0; i < results_index; i++)
+    for (unsigned int i = 0; i < MAX_ARRAY_SIZE; i++)
     {
         assert(get_checksum(results[i].curr, results[i].curr_size) == results[i].checksum && "bad checksum");
         mem_free(results[i].curr);

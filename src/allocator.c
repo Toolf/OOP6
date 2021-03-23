@@ -190,6 +190,9 @@ mem_alloc(size_t size)
 
 void mem_free(void *ptr)
 {
+    if (!ptr)
+        return;
+
     struct Header *block = payload_to_block(ptr);
 
     if (block_is_first(block) && ((struct Arena *)block_to_arena(block))->size > DEFAULT_ARENA_MAX_SIZE)
