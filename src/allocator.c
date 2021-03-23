@@ -296,7 +296,7 @@ void *mem_realloc(void *ptr, size_t new_size)
         struct Header *next = block_next(block);
         if (next && block_is_free(next) && block_get_size_curr(block) + block_get_size_curr(next) + HEADER_SIZE >= new_size)
         {
-            block_decommit(next);
+            block_commit(next);
             size_t merge_size = block_get_size_curr(block) + block_get_size_curr(next) + HEADER_SIZE;
             if (merge_size - new_size >= CRITICAL_SIZE)
             {
