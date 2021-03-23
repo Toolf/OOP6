@@ -9,7 +9,6 @@
 #define FREE_BLOCK (size_t)(((size_t)(-1) >> 1) ^ ((size_t)(-1) >> 2))
 // save in size_prev
 #define LAST_BLOCK (size_t)((size_t)(-1) ^ ((size_t)(-1) >> 1))
-#define DECOMMIT_BLOCK (size_t)(((size_t)(-1) >> 1) ^ ((size_t)(-1) >> 2))
 
 size_t block_get_size_curr(struct Header *block)
 {
@@ -54,10 +53,6 @@ bool block_is_free(struct Header *block)
 {
     return (block->size & FREE_BLOCK) != 0;
 }
-bool block_is_decommit(struct Header *block)
-{
-    return (block->size_prev & DECOMMIT_BLOCK) != 0;
-}
 
 void block_set_first(struct Header *block)
 {
@@ -71,10 +66,6 @@ void block_set_free(struct Header *block)
 {
     block->size = block->size | FREE_BLOCK;
 }
-void block_set_decommit(struct Header *block)
-{
-    block->size_prev = block->size_prev | DECOMMIT_BLOCK;
-}
 
 void block_unset_first(struct Header *block)
 {
@@ -87,10 +78,6 @@ void block_unset_last(struct Header *block)
 void block_unset_free(struct Header *block)
 {
     block->size = block->size & ~FREE_BLOCK;
-}
-void block_unset_decommit(struct Header *block)
-{
-    block->size_prev = block->size_prev & ~DECOMMIT_BLOCK;
 }
 
 struct Header *block_next(struct Header *block)

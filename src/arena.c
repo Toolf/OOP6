@@ -9,10 +9,7 @@ struct Arena *init_arena(void)
 {
     struct Arena *default_arena = kernal_alloc(DEFAULT_ARENA_MAX_SIZE);
     if (!default_arena)
-    {
-        // kernal_alloc не може виділити память
         return NULL;
-    }
 
     default_arena->size = DEFAULT_ARENA_MAX_SIZE;
 
@@ -36,22 +33,9 @@ struct Arena *create_big_arena(size_t size, size_t critical_size)
         return NULL;
 
     void *ptr = kernal_alloc(allocate_size);
-
     if (!ptr)
-    {
-        // kernal_alloc не може виділити память
         return NULL;
-    }
 
-    // Якщо можна виділити частину виділиної ділянки на default арену
-    // if (allocate_size - size - ARENA_HEADER_SIZE >= critical_size)
-    // {
-    //     big_arena_size = size + ARENA_HEADER_SIZE;
-    // }
-    // else
-    // {
-    //     big_arena_size = allocate_size;
-    // }
     big_arena_size = allocate_size - ARENA_HEADER_SIZE;
 
     struct Arena *big_arena = ptr;

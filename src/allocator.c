@@ -33,13 +33,10 @@ min_size_t(size_t a, size_t b)
 #define block_to_payload(block) ((char *)block + HEADER_SIZE)
 #define payload_to_block(payload) (struct Header *)((char *)payload - HEADER_SIZE)
 #define arena_to_first_block(arena) (struct Header *)((char *)arena + ARENA_HEADER_SIZE)
-#define block_to_arena(block) ((char *)block - block_get_addr(block))
+#define block_to_arena(block) (struct Arena *)((char *)block - block_get_addr(block))
 
 void block_decommit(struct Header *block)
 {
-    // if (block_is_decommit(block))
-    //     return;
-
     size_t addr_start;
     addr_start = align_by(block_get_addr(block), get_page_size());
     if (addr_start < block_get_addr(block) + HEADER_SIZE + NODE_SIZE)
@@ -53,14 +50,11 @@ void block_decommit(struct Header *block)
                                                  : decommit_size - decommit_size % get_page_size();
         struct Arena *arena = block_to_arena(block);
         decommit(arena, addr_start, align_to_lower_decommit_size);
-        block_set_decommit(block);
     }
 }
 
 void block_commit(struct Header *block)
 {
-    // if (!block_is_decommit(block))
-    //     return;
     size_t addr_start;
     addr_start = align_by(block_get_addr(block), get_page_size());
     size_t decommit_size = HEADER_SIZE + block->size - addr_start;
@@ -69,7 +63,6 @@ void block_commit(struct Header *block)
                                              : decommit_size - decommit_size % get_page_size();
     struct Arena *arena = block_to_arena(block);
     commit(arena, addr_start, align_to_lower_decommit_size);
-    block_unset_decommit(block);
 }
 
 struct Header *block_merge(struct Header *block, struct Header *next)
@@ -224,7 +217,6 @@ void mem_free(void *ptr)
     }
     else
     {
-        // TODO : Allocator decommit
         // Якщо якась сторінка пам’яті в алокаторі пам’яті не містить жодної інформації,
         // то алокатор має повідомити ядро про це відповідним системним викликом.
 
