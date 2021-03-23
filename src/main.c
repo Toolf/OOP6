@@ -37,7 +37,7 @@ unsigned int get_checksum(void *ptr, size_t size)
 {
     unsigned int sum = 0;
     for (size_t i = 0; i < size; i++)
-        sum += (sum << 2) ^ (sum >> 5) ^ *((char *)ptr + i);
+        sum = (sum << 2) ^ (sum >> 5) ^ *((char *)ptr + i);
     return sum;
 }
 
