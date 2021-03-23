@@ -41,10 +41,10 @@ void block_decommit(struct Header *block)
     addr_start = align_by(block_get_addr(block), get_page_size());
     if (addr_start < block_get_addr(block) + HEADER_SIZE + NODE_SIZE)
         addr_start += get_page_size();
-    if (addr_start + get_page_size() <= block_get_addr(block) + block->size)
+    if (addr_start + get_page_size() <= block_get_addr(block) + block_get_size_curr(block))
     {
         // якщо початок та кінець області для decommit знаходиться в блоку
-        size_t decommit_size = HEADER_SIZE + block->size - addr_start;
+        size_t decommit_size = HEADER_SIZE + block_get_size_curr(block) - addr_start;
         size_t align_to_lower_decommit_size =
             decommit_size % get_page_size() == 0 ? decommit_size
                                                  : decommit_size - decommit_size % get_page_size();
@@ -57,7 +57,7 @@ void block_commit(struct Header *block)
 {
     size_t addr_start;
     addr_start = align_by(block_get_addr(block), get_page_size());
-    size_t decommit_size = HEADER_SIZE + block->size - addr_start;
+    size_t decommit_size = HEADER_SIZE + block_get_size_curr(block) - addr_start;
     size_t align_to_lower_decommit_size =
         decommit_size % get_page_size() == 0 ? decommit_size
                                              : decommit_size - decommit_size % get_page_size();
