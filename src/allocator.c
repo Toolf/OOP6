@@ -41,7 +41,7 @@ void block_decommit(struct Header *block)
     addr_start = align_by(block_get_addr(block), get_page_size());
     if (addr_start < block_get_addr(block) + HEADER_SIZE + NODE_SIZE)
         addr_start += get_page_size();
-    if (addr_start + get_page_size() <= block_get_addr(block) + block_get_size_curr(block))
+    if (addr_start + get_page_size() <= block_get_addr(block) + block_get_size_curr(block) + HEADER_SIZE)
     {
         // якщо початок та кінець області для decommit знаходиться в блоку
         size_t decommit_size = HEADER_SIZE + block_get_size_curr(block) - addr_start;
