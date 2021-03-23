@@ -284,7 +284,7 @@ void *mem_realloc(void *ptr, size_t new_size)
                     block_unset_last(new_block);
                     block_set_size_prev(next, block_get_size_curr(new_block));
                 }
-
+                block_decommit(new_block);
                 insert_item(&global_tree, init_node(block_to_node(new_block), block_get_size_curr(new_block)));
             }
             return ptr;
