@@ -55,9 +55,8 @@ void auto_test(size_t max_size)
     // Після закінчення тестування треба перевірити всі контрольні суми та звільнити всі блоки.
     unsigned int seed = time(NULL);
     srand(seed);
-    printf("seed: %u\n", seed);
     struct Result results[MAX_ARRAY_SIZE] = {{.checksum = 0, .curr = NULL, .curr_size = 0}};
-    printf("TEST START\n");
+    printf("TEST START\nseed: %u\n", seed);
 
     for (unsigned int i = 0; i < N; i++)
     {
@@ -65,7 +64,7 @@ void auto_test(size_t max_size)
         // 1 - REALLOC
         // 2 - FREE
         if (i % (N / 100) == 0)
-            printf("%u%\n", i / (N / 100));
+            printf("%u\n", i / (N / 100));
         unsigned short action = rand() % 3;
         size_t size = rand() % max_size;
         unsigned int rand_index = rand() % MAX_ARRAY_SIZE;

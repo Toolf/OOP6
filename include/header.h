@@ -23,14 +23,17 @@ void block_set_addr(struct Header *, size_t addr);
 bool block_is_first(struct Header *);
 bool block_is_last(struct Header *);
 bool block_is_free(struct Header *);
+bool block_is_decommit(struct Header *);
 
 void block_set_first(struct Header *);
 void block_set_last(struct Header *);
 void block_set_free(struct Header *);
+void block_set_decommit(struct Header *);
 
 void block_unset_first(struct Header *);
 void block_unset_last(struct Header *);
 void block_unset_free(struct Header *);
+void block_unset_decommit(struct Header *);
 
 struct Header *block_next(struct Header *block);
 struct Header *block_prev(struct Header *block);

@@ -37,6 +37,8 @@ min_size_t(size_t a, size_t b)
 
 void block_decommit(struct Header *block)
 {
+    if (block_is_decommit(block))
+        return;
     size_t addr_start;
     addr_start = align_by(block_get_addr(block), get_page_size());
     if (addr_start < block_get_addr(block) + HEADER_SIZE + NODE_SIZE)
@@ -55,6 +57,8 @@ void block_decommit(struct Header *block)
 
 void block_commit(struct Header *block)
 {
+    if (!block_is_decommit(block))
+        return;
     size_t addr_start;
     addr_start = align_by(block_get_addr(block), get_page_size());
     size_t decommit_size = HEADER_SIZE + block_get_size_curr(block) - addr_start;
@@ -118,7 +122,6 @@ mem_alloc(size_t size)
     struct Node *node = search_smallest_largets(&global_tree, size);
     if (node)
         block = node_to_block(node);
-
     // Якщо знайдений block рівний NULL це значить що в даній арені не було знайдено блоку потрібного розміру
     if (block == NULL)
     {
@@ -132,7 +135,6 @@ mem_alloc(size_t size)
         create_header(block, NULL, true, new_arena->size - HEADER_SIZE, ARENA_HEADER_SIZE);
         block_set_first(block);
         block_set_last(block);
-
         insert_item(
             &global_tree,
             init_node(block_to_node(block), block_get_size_curr(block)) //
