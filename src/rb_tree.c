@@ -3,16 +3,6 @@
 #include <stdio.h>
 #include "rb_tree.h"
 
-static struct Node RBNIL = {
-    .color = BLACK,
-    .parent = &RBNIL,
-    .left = &RBNIL,
-    .right = &RBNIL,
-    .prev = NULL,
-    .next = NULL,
-    .value = 0,
-};
-
 bool is_rbnil(struct Node *node)
 {
     return node == &RBNIL;
@@ -37,7 +27,7 @@ void insert_item(struct RBTree *tree, struct Node *z)
     if (tree->root == NULL)
     {
         tree->root = z;
-        fix_violation(tree, z);
+        z->color = BLACK;
         return;
     }
     struct Node *y = &RBNIL;
@@ -105,8 +95,11 @@ void remove_fixup(struct RBTree *tree, struct Node *x)
             }
             if (w->left->color == BLACK && w->right->color == BLACK)
             {
-                w->color = RED;
                 x = x->parent;
+                if (!is_rbnil(w))
+                    w->color = RED;
+                else
+                    break;
             }
             else
             {
@@ -127,7 +120,7 @@ void remove_fixup(struct RBTree *tree, struct Node *x)
         else
         {
             w = x->parent->left;
-            if (!is_rbnil(w) && w->color == RED)
+            if (w->color == RED)
             {
                 w->color = BLACK;
                 x->parent->color = RED;
@@ -136,8 +129,11 @@ void remove_fixup(struct RBTree *tree, struct Node *x)
             }
             if (w->right->color == BLACK && w->left->color == BLACK)
             {
-                w->color = RED;
                 x = x->parent;
+                if (!is_rbnil(w))
+                    w->color = RED;
+                else
+                    break;
             }
             else
             {
@@ -157,10 +153,6 @@ void remove_fixup(struct RBTree *tree, struct Node *x)
         }
     }
     x->color = BLACK;
-    RBNIL.parent = &RBNIL;
-    RBNIL.left = &RBNIL;
-    RBNIL.right = &RBNIL;
-    RBNIL.color = BLACK;
     return;
 }
 
@@ -256,11 +248,6 @@ void remove_item(struct RBTree *tree, struct Node *node)
 void fix_violation(struct RBTree *tree, struct Node *z)
 {
     struct Node *y;
-    // if (!z->parent || !z->parent->parent)
-    // {
-    //     tree->root->color = BLACK;
-    //     return;
-    // }
 
     while (z->parent->color == RED)
     {
@@ -391,23 +378,36 @@ struct Node *search_smallest_largets(struct RBTree *tree, size_t value)
 
 void print_tree(struct RBTree *tree)
 {
+    struct Node *nodes[500] = {NULL};
+    struct Node *nodes_next_level[500] = {NULL};
+    nodes[0] = tree->root;
+    int count_on_level = 1;
     printf("Tree:\n");
-    if (tree->root)
-        print_node(tree->root);
+    while (count_on_level != 0)
+    {
+        int count_on_next_level = 0;
+        for (int i = 0; i < count_on_level; i++)
+        {
+            if (nodes[i] && !is_rbnil(nodes[i]))
+            {
+                printf("%zu (%s), ", nodes[i]->value, nodes[i]->color ? "black" : "red");
+                if (!is_rbnil(nodes[i]->left))
+                {
+                    nodes_next_level[count_on_next_level] = nodes[i]->left;
+                    count_on_next_level++;
+                }
+                if (!is_rbnil(nodes[i]->right))
+                {
+                    nodes_next_level[count_on_next_level] = nodes[i]->right;
+                    count_on_next_level++;
+                }
+            }
+        }
+        count_on_level = count_on_next_level;
+        for (int i = 0; i < count_on_next_level; i++)
+            nodes[i] = nodes_next_level[i];
+        printf("\n");
+    }
+
     printf("Tree END\n");
-}
-
-void print_node(struct Node *node)
-{
-    if (!node->left && !node->right)
-        printf("Leaf %zu(%s)\n", node->value, node->color == RED ? "RED" : "BLACK");
-    if (node->left)
-        printf("From %zu(%s) to %zu(%s)\n", node->value, node->color == RED ? "RED" : "BLACK", node->left->value, node->left->color == RED ? "RED" : "BLACK");
-    if (node->right)
-        printf("From %zu(%s) to %zu(%s)\n", node->value, node->color == RED ? "RED" : "BLACK", node->right->value, node->right->color == RED ? "RED" : "BLACK");
-
-    if (node->left)
-        print_node(node->left);
-    if (node->right)
-        print_node(node->right);
 }

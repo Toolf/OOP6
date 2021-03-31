@@ -45,12 +45,7 @@ struct Arena *create_big_arena(size_t size, size_t critical_size)
     return big_arena;
 }
 
-void decommit(struct Arena *arena, size_t addr, size_t size)
+void reset(struct Arena *arena, size_t offset, size_t size)
 {
-    kernal_decommit((char *)arena + addr, size);
-}
-
-void commit(struct Arena *arena, size_t addr, size_t size)
-{
-    kernal_commit((char *)arena + addr, size);
+    kernal_reset((char *)arena + offset, size);
 }

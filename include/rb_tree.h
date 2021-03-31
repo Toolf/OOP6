@@ -1,5 +1,7 @@
-#pragma once
+#ifndef RB_TREE
+#define RB_TREE
 #include <stdbool.h>
+#include <stddef.h>
 
 #define NODE_SIZE align(sizeof(struct Node))
 
@@ -17,6 +19,18 @@ struct Node
     bool color;
     size_t value;
 };
+
+static struct Node RBNIL = {
+    .color = BLACK,
+    .parent = &RBNIL,
+    .left = &RBNIL,
+    .right = &RBNIL,
+    .prev = NULL,
+    .next = NULL,
+    .value = 0,
+};
+
+bool is_rbnil(struct Node *node);
 
 struct RBTree
 {
@@ -42,3 +56,5 @@ struct Node *search_smallest_largets(struct RBTree *tree, size_t value);
 void print_tree(struct RBTree *tree);
 
 void print_node(struct Node *node);
+
+#endif /* RB_TREE */

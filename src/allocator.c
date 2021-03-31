@@ -7,6 +7,7 @@
 #include "kernal.h"
 #include "allocator.h"
 #include "arena.h"
+#include "header.h"
 #include "rb_tree.h"
 // CRITICAL_SIZE - розмір мінімального порожнього блоку (включно з Header)
 #define CRITICAL_SIZE (HEADER_SIZE + NODE_SIZE)
@@ -33,40 +34,24 @@ min_size_t(size_t a, size_t b)
 #define block_to_payload(block) ((char *)block + HEADER_SIZE)
 #define payload_to_block(payload) (struct Header *)((char *)payload - HEADER_SIZE)
 #define arena_to_first_block(arena) (struct Header *)((char *)arena + ARENA_HEADER_SIZE)
-#define block_to_arena(block) (struct Arena *)((char *)block - block_get_addr(block))
+#define block_to_arena(block) (struct Arena *)((char *)block - block_get_offset(block))
 
-void block_decommit(struct Header *block)
+void block_reset(struct Header *block)
 {
-    if (block_is_decommit(block))
-        return;
-    size_t addr_start;
-    addr_start = align_by(block_get_addr(block), get_page_size());
-    if (addr_start < block_get_addr(block) + HEADER_SIZE + NODE_SIZE)
-        addr_start += get_page_size();
-    if (addr_start + get_page_size() <= block_get_addr(block) + block_get_size_curr(block) + HEADER_SIZE)
+    size_t offset_start;
+    offset_start = align_by(block_get_offset(block), get_page_size());
+    if (offset_start < block_get_offset(block) + HEADER_SIZE + NODE_SIZE)
+        offset_start += get_page_size();
+    if (offset_start + get_page_size() <= block_get_offset(block) + block_get_size_curr(block) + HEADER_SIZE)
     {
-        // якщо початок та кінець області для decommit знаходиться в блоку
-        size_t decommit_size = HEADER_SIZE + block_get_size_curr(block) - addr_start;
-        size_t align_to_lower_decommit_size =
-            decommit_size % get_page_size() == 0 ? decommit_size
-                                                 : decommit_size - decommit_size % get_page_size();
+        // якщо початок та кінець області для reset знаходиться в блоку
+        size_t reset_size = HEADER_SIZE + block_get_size_curr(block) - offset_start;
+        size_t align_to_lower_reset_size =
+            reset_size % get_page_size() == 0 ? reset_size
+                                              : reset_size - reset_size % get_page_size();
         struct Arena *arena = block_to_arena(block);
-        decommit(arena, addr_start, align_to_lower_decommit_size);
+        reset(arena, offset_start, align_to_lower_reset_size);
     }
-}
-
-void block_commit(struct Header *block)
-{
-    if (!block_is_decommit(block))
-        return;
-    size_t addr_start;
-    addr_start = align_by(block_get_addr(block), get_page_size());
-    size_t decommit_size = HEADER_SIZE + block_get_size_curr(block) - addr_start;
-    size_t align_to_lower_decommit_size =
-        decommit_size % get_page_size() == 0 ? decommit_size
-                                             : decommit_size - decommit_size % get_page_size();
-    struct Arena *arena = block_to_arena(block);
-    commit(arena, addr_start, align_to_lower_decommit_size);
 }
 
 struct Header *block_merge(struct Header *block, struct Header *next)
@@ -151,7 +136,6 @@ mem_alloc(size_t size)
 
     block_unset_free(block);
     // Видалення занятої ноди з дерева
-    block_commit(block);
     remove_item(&global_tree, block_to_node(block));
     size_t block_size = block_get_size_curr(block);
 
@@ -167,11 +151,11 @@ mem_alloc(size_t size)
         block_set_size_curr(block, size);
         struct Header *right_sub_block = block_next(block);
         create_header(
-            right_sub_block,                                   /*Початок блоку*/
-            block,                                             /*Попередній блок*/
-            true,                                              /*Стан блоку "вільний"*/
-            block_size - size - HEADER_SIZE,                   /*Розмір блоку*/
-            block_get_addr(block) + block_get_size_curr(block) //
+            right_sub_block,                                     /*Початок блоку*/
+            block,                                               /*Попередній блок*/
+            true,                                                /*Стан блоку "вільний"*/
+            block_size - size - HEADER_SIZE,                     /*Розмір блоку*/
+            block_get_offset(block) + block_get_size_curr(block) //
         );
         if (!is_last)
         {
@@ -180,7 +164,7 @@ mem_alloc(size_t size)
         }
 
         // Добавлення нової ноди в дерево
-        block_decommit(right_sub_block);
+        block_reset(right_sub_block);
         insert_item(
             &global_tree,
             init_node(block_to_node(right_sub_block), block_get_size_curr(right_sub_block)) //
@@ -224,8 +208,7 @@ void mem_free(void *ptr)
     {
         // Якщо якась сторінка пам’яті в алокаторі пам’яті не містить жодної інформації,
         // то алокатор має повідомити ядро про це відповідним системним викликом.
-
-        block_decommit(block);
+        block_reset(block);
     }
 }
 
@@ -279,14 +262,14 @@ void *mem_realloc(void *ptr, size_t new_size)
                     block,
                     true,
                     block_size - new_size - HEADER_SIZE,
-                    block_get_addr(block) + block_get_size_curr(block) //
+                    block_get_offset(block) + block_get_size_curr(block) //
                 );
                 if (!is_last)
                 {
                     block_unset_last(new_block);
                     block_set_size_prev(next, block_get_size_curr(new_block));
                 }
-                block_decommit(new_block);
+                block_reset(new_block);
                 insert_item(&global_tree, init_node(block_to_node(new_block), block_get_size_curr(new_block)));
             }
             return ptr;
@@ -298,7 +281,6 @@ void *mem_realloc(void *ptr, size_t new_size)
         struct Header *next = block_next(block);
         if (next && block_is_free(next) && block_get_size_curr(block) + block_get_size_curr(next) + HEADER_SIZE >= new_size)
         {
-            block_commit(next);
             size_t merge_size = block_get_size_curr(block) + block_get_size_curr(next) + HEADER_SIZE;
             if (merge_size - new_size >= CRITICAL_SIZE)
             {
@@ -312,7 +294,7 @@ void *mem_realloc(void *ptr, size_t new_size)
                     block,
                     true,
                     merge_size - new_size - HEADER_SIZE,
-                    block_get_addr(block) + block_get_size_curr(block) //
+                    block_get_offset(block) + block_get_size_curr(block) //
                 );
                 if (!is_last)
                 {
@@ -320,7 +302,7 @@ void *mem_realloc(void *ptr, size_t new_size)
                     block_set_size_prev(block_next(new_block), block_get_size_curr(new_block));
                 }
 
-                block_decommit(new_block);
+                block_reset(new_block);
                 insert_item(&global_tree, init_node(block_to_node(new_block), block_get_size_curr(new_block)));
             }
             else

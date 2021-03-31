@@ -1,4 +1,5 @@
-#pragma once
+#ifndef ARENA_H
+#define ARENA_H
 
 #include "config.h"
 #include <header.h>
@@ -7,7 +8,7 @@
 
 // page count
 #define ARENA_HEADER_SIZE align(sizeof(struct Arena))
-#define DEFAULT_ARENA_MAX_SIZE ((2 * get_page_size()) - ARENA_HEADER_SIZE)
+#define DEFAULT_ARENA_MAX_SIZE ((8 * get_page_size()) - ARENA_HEADER_SIZE)
 
 struct Arena
 {
@@ -24,6 +25,6 @@ void remove_arena(struct Arena *arena);
 struct Arena *create_big_arena(size_t size, size_t critical_size);
 
 // addr - відносна адреса, відносно початку арени
-void decommit(struct Arena *arena, size_t addr, size_t size);
+void reset(struct Arena *arena, size_t offset, size_t size);
 
-void commit(struct Arena *arena, size_t addr, size_t size);
+#endif /* ARENA_H */

@@ -24,18 +24,7 @@ void kernal_free(void *ptr, size_t size)
     VirtualFree(ptr, 0, MEM_RELEASE);
 }
 
-void *kernal_realloc(void *ptr, size_t new_size)
+void kernal_reset(void *ptr, size_t size)
 {
-    // TODO : WIN Kernal realloc
-    return NULL;
-}
-
-void kernal_decommit(void *ptr, size_t size)
-{
-    VirtualFree(ptr, size, MEM_DECOMMIT);
-}
-
-void kernal_commit(void *ptr, size_t size)
-{
-    VirtualAlloc(ptr, size, MEM_COMMIT, PAGE_READWRITE);
+    VirtualAlloc(ptr, size, MEM_RESET, PAGE_READWRITE);
 }

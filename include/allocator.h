@@ -1,4 +1,5 @@
-#pragma once
+#ifndef ALLOCATOR_H
+#define ALLOCATOR_H
 
 #include <stddef.h> // have size_t and NULL
 
@@ -19,3 +20,5 @@ void mem_free(void *ptr);
 void *mem_realloc(void *ptr, size_t new_size);
 
 void mem_print(void);
+
+#endif /* ALLOCATOR_H */

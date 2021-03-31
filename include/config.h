@@ -1,4 +1,5 @@
-#pragma once
+#ifndef CONFIG_H
+#define CONFIG_H
 
 #include <stddef.h>
 
@@ -10,3 +11,5 @@ static inline size_t align_by(size_t N, size_t align_by)
 {
     return N % align_by == 0 ? N : N + (align_by - N % align_by);
 }
+
+#endif /* CONFIG_H */
