@@ -43,16 +43,6 @@ unsigned int get_checksum(void *ptr, size_t size)
 
 void auto_test(size_t max_size)
 {
-    // Автоматичне тестування має виявити помилки в реалізації, які не були виявлені при ручному тестуванні.
-    // Ідея тестування наступна: виконати запити mem_alloc, mem_free і mem_realloc у випадковому порядку.
-
-    // Щоб це організувати треба створити масив в якому будуть запам’ятовуватися
-    // результати успішних викликів mem_alloc і mem_realloc. Ці результати це
-    // покажчики на блоки, їх розмір і контрольні суми даних блоків.
-    // Всі отримані блоки необхідно заповнювати випадковими даними і підраховувати
-    // їх контрольні суми. Перед викликом mem_realloc або mem_free необхідно перевірити
-    // контрольну суму блоку. Контрольна сума дозволяє виявити модифікацію даних блоку.
-    // Після закінчення тестування треба перевірити всі контрольні суми та звільнити всі блоки.
     unsigned int seed = time(NULL);
     srand(seed);
     struct Result results[MAX_ARRAY_SIZE] = {{.checksum = 0, .curr = NULL, .curr_size = 0}};
@@ -63,8 +53,8 @@ void auto_test(size_t max_size)
         // 0 - ALLOC
         // 1 - REALLOC
         // 2 - FREE
-        if (i % (N / 100) == 0)
-            printf("%u\n", i / (N / 100));
+        // if (i % (N / 100) == 0)
+        //     printf("%u\n", i / (N / 100));
         unsigned short action = rand() % 3;
         size_t size = rand() % max_size;
         unsigned int rand_index = rand() % MAX_ARRAY_SIZE;
@@ -82,6 +72,8 @@ void auto_test(size_t max_size)
                     .curr_size = size,
                     .checksum = get_checksum(ptr, size),
                 };
+                if (results[rand_index].curr)
+                    mem_free(results[rand_index].curr);
                 results[rand_index] = result;
             }
             break;
@@ -156,10 +148,13 @@ void test_size_max()
 int main()
 {
     // test with very small allocation max_size
+    printf("test with very small allocation max_size\n");
     auto_test(16);
     // test with small allocation max_size
+    printf("test with small allocation max_size\n");
     auto_test(512);
     // test with big allocation max_size
+    printf("test with big allocation max_size\n");
     auto_test(RAND_MAX);
     test_size_max();
     return 0;
