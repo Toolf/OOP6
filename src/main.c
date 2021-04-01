@@ -72,8 +72,7 @@ void auto_test(size_t max_size)
                     .curr_size = size,
                     .checksum = get_checksum(ptr, size),
                 };
-                if (results[rand_index].curr)
-                    mem_free(results[rand_index].curr);
+                mem_free(results[rand_index].curr);
                 results[rand_index] = result;
             }
             break;
